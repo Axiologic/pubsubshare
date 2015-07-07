@@ -7,7 +7,7 @@ Subscribe (sub) operations to an relay are allowed only for internal nodes. Norm
  
 ##Features
   PubSubChor allows controlled and secure 
-        - message communication between internal nodes from any two organisations
+        - message communication between internal nodes between any two organisations
         - file transfers between nodes belonging to any two organisations.  
         - code signing service: at signing a list of organisations is specified and the code should be approved by a fixed number of organisations
  
@@ -41,27 +41,30 @@ Subscribe (sub) operations to an relay are allowed only for internal nodes. Norm
 ## TODO
     PubSubChor is work in progress, no stable version is ready yet. 
     
-## Messages :
-  All the messages are JSONS in this format:
-    
-         {
-            TYPE:string,              /* message type*/
-            FROM:string,
-            TO:string,
-            version:string,           /* current protocol version*/
-            pversion:number,          /*password version*/      
-            messageCounter:int        /* each message has a counter to prevent forgery. A rely can't sent twice a message with the same messageCounter or with a counter smaller than previous one */
-            payload:object            /* could be an int a string or an encrypted content*/
-            randomPadding:string      /* a string with random data to obfuscate the type of message based on length*/
-         }
+## Communications:
 
-    MESSAGES SEND 
-    
-    PING, PONG:  
-        the PING message will contain a field payload with a random string generated as password and encrypted with current password 
-        PONG:  will contain no content, only the current version of the password. PONG will be send after each other message with payload beeing the acknowledged message number
-    RELAY:  forward a message toward another organisation
-    CP: change password 
+  Relay http server:
+  - REST request (PUT): https://server:port/publish/channel 
+  - REST request (PUT): https://server:port/proxy/filebusname  
+  
+  
+  
+  Service name http server:
+   - REST requests: https://server:port/lookup/organisationName
+   - response in JSON message:    
+         {
+            organisationName:name
+            publicKey:key
+            publicHostAddress:adress
+            publicHostPort:port
+         }
+   
+   - REST requests: https://server:port/getPrivateKey/organisationName/publicHost/publicPort/passcode
+      - response in JSON message:    
+            {               
+               privateKey:key               
+            }
+
      
      
     
