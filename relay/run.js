@@ -1,4 +1,4 @@
-
+/*
 
 var persistenceModule = require("apersistence");
 
@@ -24,3 +24,4 @@ container.service('mainFunction', ['relayService'], function(outOfService, relay
         return {"relayService":relayService};
     }
 })
+ */

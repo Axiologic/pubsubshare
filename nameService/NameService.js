@@ -1,6 +1,6 @@
 /**
  * Created by salboaie on 5/25/15.
- */
+
 
 var container           = require("semantic-firewall").container;
 
@@ -21,3 +21,4 @@ container.service('NameService', ['redisPersistence', 'localConfig'], function(o
     }
 })
 
+ */
