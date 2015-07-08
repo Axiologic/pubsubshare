@@ -44,13 +44,13 @@ Subscribe (sub) operations to an relay are allowed only for internal nodes. Norm
 ## Communications:
 
   Relay http server:
-  - REST request (PUT): https://server:port/publish/channel 
-  - REST request (PUT): https://server:port/proxy/filebusname  
+  - REST request (POST): https://server:port/publish/channel 
+  - REST request (POST): https://server:port/proxy/channel/fileid 
   
   
   
   Service name http server:
-   - REST requests: https://server:port/lookup/organisationName
+   - REST requests (GET): https://server:port/lookup/organisationName
    - response in JSON message:    
          {
             organisationName:name
@@ -59,7 +59,7 @@ Subscribe (sub) operations to an relay are allowed only for internal nodes. Norm
             publicHostPort:port
          }
    
-   - REST requests: https://server:port/getPrivateKey/organisationName/publicHost/publicPort/passcode
+   - REST requests (GET): https://server:port/getPrivateKey/organisationName/publicHost/publicPort/passcode
       - response in JSON message:    
             {               
                privateKey:key               
