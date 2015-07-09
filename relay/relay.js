@@ -22,13 +22,30 @@ function RedisPubSubClient(redisHost, redisPort, redisPassword, publishFunction)
     var publishRedisClient = redis.createClient(redisPort, redisHost);
     var subscribeRedisClient = redis.createClient(redisPort);
 
+    var listeners = {};
+
+
     this.getCommandsClient = function (){
         return publishRedisClient;
     }
 
     this.subscribe = function(channel, callback){
-        subscribeRedisClient.subscribe(channel,callback);
+        subscribeRedisClient.subscribe(channel);
+        listeners[channel] =  callback;
     }
+
+    subscribeRedisClient.on("message", function(channel, res){
+        var c = listeners[channel];
+        var obj;
+        if(c){
+            try{
+                obj = JSON.parse(res);
+            } catch(err){
+                obj = res;
+            }
+            c(obj);
+        }
+    })
 
     this.publish = function(channel, message, callback){
         publishRedisClient.publish(channel, message, callback);
@@ -45,7 +62,7 @@ function createServer(port){
     });
     //server.use(restify.acceptParser(server.acceptable));
 
-    //server.use(restify.bodyParser({ mapParams: false }));
+    server.use(restify.bodyParser({ mapParams: false }));
 
     server.listen(port, function () {
         console.log('%s listening at %s', server.name, server.url);
@@ -55,17 +72,13 @@ function createServer(port){
 }
 
 exports.createRelay = function(organisationName, redisHost, redisPort, publicHost, publicPort, nsHost, nsPort){
-  var redis = RedisPubSubClient(redisHost, redisPort, undefined);
+  var redis = new RedisPubSubClient(redisHost, redisPort, undefined);
 
     var server =  createServer(publicPort);
     server.post('/publish/:channel', function (req, res, next) {
-        console.log("Request:" , req.params, req.body);
-
-       // var jsonBody = JSON.parse(req.body);
-        console.log("XXXXX");
-
-        res.send(req.params);
-
+        //console.log("Forwarding message towards", req.params.channel);
+        redis.publish(req.params.channel, req.body);
+        res.send("success");
         return next();
     });
 
@@ -86,19 +99,24 @@ exports.createRelay = function(organisationName, redisHost, redisPort, publicHos
 }
 
 
-
 exports.createClient = function(redisHost, redisPort, redisPassword){
     var client = new RedisPubSubClient(redisHost, redisPort, redisPassword);
     var oldPublish = client.publish;
 
     client.publish = function(channel, message, callback){
+        var strMessage;
+        if(typeof message == "string"){
+            strMessage = message;
+        } else {
+            strMessage = JSON.stringify(message);
+        }
         var res = channel.match(/\w*:\/\/([\w\.]+[:]*\d*)\/(.*)/);
         if(res){
                 var localChannel = res[2];
                 ns_getOrganisation(res[1], function(err, res){
 
                     var url = "http://"+ res.server + ":" + res.port +"/publish/" + localChannel;
-                    console.log("Post towards ", url, JSON.stringify(message));
+                    //console.log("Post towards ", url, strMessage);
 
                     request({
                         url: url, //URL to hit
@@ -107,17 +125,17 @@ exports.createClient = function(redisHost, redisPort, redisPassword){
                         headers: {
                             'Content-Type': 'json/text'
                         },
-                        body: JSON.stringify(message)
+                        body: strMessage
                     }, function(error, response, body){
                         if(error) {
                             console.log(error);
                         } else {
-                            console.log(response.statusCode, body);
+                            //console.log(response.statusCode, body);
                         }
                     });
                 })
             } else {
-            oldPublish(channel, message, callback);
+            oldPublish(channel, strMessage, callback);
         }
     }
     return client;
