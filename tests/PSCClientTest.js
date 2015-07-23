@@ -1,6 +1,8 @@
 var psc = require("../relay/relay.js");
 var assert = require("semantic-firewall").assert;
 
+assert.begin("Testing basic pub/sub communication between two organisations");
+
 var relay1 = psc.createRelay("ORG1", "localhost", 6379, "localhost", 8000);
 var relay2 = psc.createRelay("ORG2", "localhost", 6380, "localhost", 8001);
 

@@ -2,6 +2,8 @@
 var redis = require("redis");
 var request = require("request");
 
+var RELAY_PUBSUB_CHANNEL_NAME = "PubSubRelay";
+
 function ns_getOrganisation(orgName, callback){
     if(orgName == "ORG1"){
         callback(null, {
@@ -88,6 +90,32 @@ exports.createRelay = function(organisationName, redisHost, redisPort, publicHos
         return next();
     });
 
+    function pushMessage(localChannel, organisation, strMessage){
+        ns_getOrganisation( organisation, function(err, res){
+            var url = "http://"+ res.server + ":" + res.port +"/publish/" + localChannel;
+
+            request({
+                url: url, //URL to hit
+                qs: {from: 'pub/sub relay', time: +new Date()}, //Query string data
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'json/text'
+                },
+                body: strMessage
+            }, function(error, response, body){
+                if(error) {
+                    console.log(error);
+                } else {
+                    //console.log(response.statusCode, body);
+                }
+            });
+        })
+    }
+
+    redis.subscribe(RELAY_PUBSUB_CHANNEL_NAME, function(envelope){
+        //console.log("Envelope:", envelope);
+        pushMessage(envelope.localChannel, envelope.organisation, envelope.message);
+    })
     /* usefull!?
     this.subscribe = function(){
 
@@ -112,28 +140,12 @@ exports.createClient = function(redisHost, redisPort, redisPassword){
         }
         var res = channel.match(/\w*:\/\/([\w\.]+[:]*\d*)\/(.*)/);
         if(res){
-                var localChannel = res[2];
-                ns_getOrganisation(res[1], function(err, res){
-
-                    var url = "http://"+ res.server + ":" + res.port +"/publish/" + localChannel;
-                    //console.log("Post towards ", url, strMessage);
-
-                    request({
-                        url: url, //URL to hit
-                        qs: {from: 'blog example', time: +new Date()}, //Query string data
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'json/text'
-                        },
-                        body: strMessage
-                    }, function(error, response, body){
-                        if(error) {
-                            console.log(error);
-                        } else {
-                            //console.log(response.statusCode, body);
-                        }
-                    });
-                })
+                var envelope = {
+                    localChannel:res[2],
+                    organisation:res[1],
+                    message:strMessage
+                }
+            oldPublish(RELAY_PUBSUB_CHANNEL_NAME, JSON.stringify(envelope), callback);
             } else {
             oldPublish(channel, strMessage, callback);
         }
