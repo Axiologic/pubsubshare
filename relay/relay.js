@@ -4,19 +4,6 @@ var request = require("request");
 
 var RELAY_PUBSUB_CHANNEL_NAME = "PubSubRelay";
 
-function ns_getOrganisation(orgName, callback){
-    if(orgName == "ORG1"){
-        callback(null, {
-            server:"localhost",
-            port:8000
-        });
-    } else {
-        callback(null, {
-            server:"localhost",
-            port:8001
-        });
-    }
-}
 
 function RedisPubSubClient(redisHost, redisPort, redisPassword, publishFunction){
     console.log("Connecting to:", redisPort, redisHost);
@@ -55,75 +42,16 @@ function RedisPubSubClient(redisHost, redisPort, redisPassword, publishFunction)
 }
 
 
-function createServer(port){
-    var restify = require('restify');
+var busNode = require("./BusNode.js");
 
-    var server = restify.createServer({
-        name: 'pubSubRelay',
-        version: '1.0.0'
-    });
-    //server.use(restify.acceptParser(server.acceptable));
-
-    server.use(restify.bodyParser({ mapParams: false }));
-
-    server.listen(port, function () {
-        console.log('%s listening at %s', server.name, server.url);
-    });
-
-    return server;
-}
-
-exports.createRelay = function(organisationName, redisHost, redisPort, publicHost, publicPort, nsHost, nsPort){
+exports.createRelay = function(organisationName, redisHost, redisPort, publicHost, publicPort, keySpath, filesPath){
   var redis = new RedisPubSubClient(redisHost, redisPort, undefined);
 
-    var server =  createServer(publicPort);
-    server.post('/publish/:channel', function (req, res, next) {
-        //console.log("Forwarding message towards", req.params.channel);
-        redis.publish(req.params.channel, req.body);
-        res.send("success");
-        return next();
-    });
-
-    server.post('/proxy/:channel/:transferId', function (req, res, next) {
-        console.log(res);
-        res.send(req.params);
-        return next();
-    });
-
-    function pushMessage(localChannel, organisation, strMessage){
-        ns_getOrganisation( organisation, function(err, res){
-            var url = "http://"+ res.server + ":" + res.port +"/publish/" + localChannel;
-
-            request({
-                url: url, //URL to hit
-                qs: {from: 'pub/sub relay', time: +new Date()}, //Query string data
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'json/text'
-                },
-                body: strMessage
-            }, function(error, response, body){
-                if(error) {
-                    console.log(error);
-                } else {
-                    //console.log(response.statusCode, body);
-                }
-            });
-        })
-    }
+    var server =  busNode.createHttpsNode(publicPort, keySpath, filesPath, redis);
 
     redis.subscribe(RELAY_PUBSUB_CHANNEL_NAME, function(envelope){
-        //console.log("Envelope:", envelope);
-        pushMessage(envelope.localChannel, envelope.organisation, envelope.message);
+        busNode.pushMessage(keySpath, envelope.organisation, envelope.localChannel, envelope.message);
     })
-    /* usefull!?
-    this.subscribe = function(){
-
-    }
-
-   this.publish = function(){
-
-    }*/
 }
 
 
