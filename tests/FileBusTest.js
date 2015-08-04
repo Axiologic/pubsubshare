@@ -11,7 +11,7 @@ var assert  = require ("semantc-firewall").assert;
 
 var fs = require("fs");
 
-var bus     = abhttps.busNode("localhost', 8080, "serverKeys", server);
+var bus     = abhttps.busNode('localhost', 8080, 'serverKeys', server);
 var client  = abhttps.busConnect("localhost", 8080, "clientKeys");
 
 

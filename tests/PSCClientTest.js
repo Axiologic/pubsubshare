@@ -3,8 +3,10 @@ var assert = require("semantic-firewall").assert;
 
 assert.begin("Testing basic pub/sub communication between two organisations");
 
-var relay1 = psc.createRelay("ORG1", "localhost", 6379, "localhost", 8000);
-var relay2 = psc.createRelay("ORG2", "localhost", 6380, "localhost", 8001);
+
+//organisationName, redisHost, redisPort, publicHost, publicPort, keySpath, filesPath
+var relay1 = psc.createRelay("ORG1", "localhost", 6379, "localhost", 8000, "tmp");
+var relay2 = psc.createRelay("ORG2", "localhost", 6380, "localhost", 8001, "tmp2");
 
 var c1 = psc.createClient("localhost", 6379);
 var c2 = psc.createClient("localhost", 6380);
