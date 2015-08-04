@@ -8,6 +8,18 @@ var request = require("request");
 
 exports.createHttpsNode = function(port, keysFolder, filesFolder, redis){
 
+
+    function retriveContent(req, callback){
+        var bodyStr = "";
+        req.on("data",function(chunk){
+            bodyStr += chunk.toString();
+        });
+        req.on("end",function(){
+            callback(null, bodyStr);
+        });
+    }
+
+
     if(!keysFolder){
         keysFolder = "tmp";
     }
@@ -29,9 +41,11 @@ exports.createHttpsNode = function(port, keysFolder, filesFolder, redis){
 
 
         router.post('/publish/:channel', function (req, res, next) {
-            console.log("Forwarding message towards", req.params.channel, req.params);
-            redis.publish(req.params.channel, req.params);
-            res.end('publish ');
+            retriveContent(req, function(err, result){
+                redis.publish(req.params.channel, result);
+                res.end('publish ');
+            });
+
         });
 
         router.get('/upload/:transferId', function (req, res, next) {
@@ -79,7 +93,6 @@ exports.pushMessage  = function(keysFolder, organisation, channel, strMessage){
     ns_getOrganisation( organisation, function(err, org){
 
         abhttps.getHttpsOptions("tmp", function(err, options){
-
             options = {};
             options.rejectUnauthorized = false;
             options.requestCert        = true;
@@ -88,19 +101,8 @@ exports.pushMessage  = function(keysFolder, organisation, channel, strMessage){
             options.hostname = org.server;
             options.port = org.port;
             options.url = "https://" + org.server + ":" + org.port + "/publish/" + channel;
-            console.log("Posting towards", options.url, strMessage )
-            request.post(options, strMessage );
-            /*var post_req = http.request(post_options, function(res) {
-                res.setEncoding('utf8');
-                res.on('data', function (chunk) {
-                    console.log('Response: ' + chunk);
-                });
-            });
-
-            // post the data
-            post_req.write(strMessage);
-            post_req.end();
-            */
+            options.form = strMessage ;
+            request.post(options);
         });
 
 

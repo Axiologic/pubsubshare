@@ -5,11 +5,11 @@ var request = require("request");
 var RELAY_PUBSUB_CHANNEL_NAME = "PubSubRelay";
 
 
-function RedisPubSubClient(redisHost, redisPort, redisPassword, publishFunction){
+function RedisPubSubClient(redisHost, redisPort, redisPassword){
     console.log("Connecting to:", redisPort, redisHost);
 
-    var publishRedisClient = redis.createClient(redisPort, redisHost);
-    var subscribeRedisClient = redis.createClient(redisPort);
+    var publishRedisClient = redis.createClient(redisPort, redisHost, redisPassword);
+    var subscribeRedisClient = redis.createClient(redisPort, redisHost, redisPassword);
 
     var listeners = {};
 
@@ -24,6 +24,7 @@ function RedisPubSubClient(redisHost, redisPort, redisPassword, publishFunction)
     }
 
     subscribeRedisClient.on("message", function(channel, res){
+
         var c = listeners[channel];
         var obj;
         if(c){
