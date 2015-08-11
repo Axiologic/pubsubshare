@@ -8,7 +8,7 @@ var clientCertificateAuth = require('client-certificate-auth');
 
 
 
-exports.createHttpsNode = function(port, keysFolder, filesFolder, redis){
+exports.createHttpsNode = function(port, keysFolder, filesFolder, redis, securityCheck){
 
     var checkAuth = function(cert) {
         /*
@@ -53,8 +53,12 @@ exports.createHttpsNode = function(port, keysFolder, filesFolder, redis){
 
     app.use(function(req,res, next){
         var cert = req.connection.getPeerCertificate();
-        console.log("Hit request", cert);
-        next();
+        if(!securityCheck || securityCheck(cert)){
+            next();
+        } else {
+            console.log("Security check failed!", cert);
+        }
+
     });
 
     //app.use(clientCertificateAuth(checkAuth));
@@ -82,7 +86,6 @@ exports.createHttpsNode = function(port, keysFolder, filesFolder, redis){
 
         router.get('/download/:transferId', function (req, res, next) {
             console.log("Downloading message ", req.params.channel, req.body);
-
             res.end('download');
         });
 

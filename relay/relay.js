@@ -4,6 +4,9 @@ var request = require("request");
 
 var RELAY_PUBSUB_CHANNEL_NAME = "PubSubRelay";
 
+var CONFIGURATION_REQUEST_CHANNEL_NAME = "PubSub_CONFIGURATION_CHANNEL_REQUEST";
+var CONFIGURATION_ANSWEAR_CHANNEL_NAME = "PubSub_CONFIGURATION_CHANNEL_ANSWEAR";
+
 
 function RedisPubSubClient(redisHost, redisPort, redisPassword){
     console.log("Connecting to:", redisPort, redisHost);
@@ -24,14 +27,13 @@ function RedisPubSubClient(redisHost, redisPort, redisPassword){
     }
 
     subscribeRedisClient.on("message", function(channel, res){
-
         var c = listeners[channel];
         var obj;
         if(c){
             try{
                 obj = JSON.parse(res);
             } catch(err){
-                obj = res;
+                console.log("Non JSON object received from Redis!", res, channel);
             }
             c(obj);
         }
@@ -53,12 +55,37 @@ exports.createRelay = function(organisationName, redisHost, redisPort, publicHos
     redis.subscribe(RELAY_PUBSUB_CHANNEL_NAME, function(envelope){
         busNode.pushMessage(keySpath, envelope.organisation, envelope.localChannel, envelope.message);
     })
+
+    redis.subscribe(CONFIGURATION_REQUEST_CHANNEL_NAME, function(){
+        console.log("Configuration request",organisationName )
+        redis.publish(CONFIGURATION_ANSWEAR_CHANNEL_NAME, JSON.stringify({publicHost:publicHost, publicPort:publicPort, organisationName:organisationName}));
+    })
 }
 
 
 exports.createClient = function(redisHost, redisPort, redisPassword){
     var client = new RedisPubSubClient(redisHost, redisPort, redisPassword);
     var oldPublish = client.publish;
+    var publicFSHost;
+    var publicFSPort;
+    var organisationName;
+
+    client.publish(CONFIGURATION_REQUEST_CHANNEL_NAME, JSON.stringify({ask:"config"}));
+    client.subscribe(CONFIGURATION_ANSWEAR_CHANNEL_NAME, function(obj){
+        publicFSHost = obj.publicHost;
+        publicFSPort = obj.publicPort;
+        organisationName = obj.organisationName;
+        console.log("Got it:", organisationName, publicFSHost ,publicFSPort);
+    })
+
+    function tryToGetConfiguration(){
+        if(!publicFSHost){
+            console.log("Trying again", redisHost, redisPort);
+            setTimeout(tryToGetConfiguration,300);
+        }
+    }
+
+    tryToGetConfiguration();
 
     client.publish = function(channel, message, callback){
         var strMessage;
@@ -78,6 +105,12 @@ exports.createClient = function(redisHost, redisPort, redisPassword){
             } else {
             oldPublish(channel, strMessage, callback);
         }
+    }
+
+    client.shareFile = function(path, callback){
+
+        //var uid =
+
     }
     return client;
 }

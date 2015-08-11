@@ -6,34 +6,32 @@ eyJ1cmwiOiJsb2NhbGhvc3Q6MzAwMCIsImNvZGUiOiJRMFZwVFRoa1pYbFZjV05rU1VFOVBRbz0iLCJr
 
 //eyJ1cmwiOiJsb2NhbGhvc3Q6MzAwMCIsImNvZGUiOiJPVzFFTm5NM1VqZGhVWHBDYUVFOVBRbz0iLCJrZXkiOiJibFEyUmtGbWJsTnRlVGRpSzJjOVBRbz0ifQ==
 
+var psc = require("../relay/relay.js");
+var assert = require("semantic-firewall").assert;
 
-var assert  = require ("semantc-firewall").assert;
-
-var fs = require("fs");
-
-var bus     = abhttps.busNode('localhost', 8080, 'serverKeys', server);
-var client  = abhttps.busConnect("localhost", 8080, "clientKeys");
+assert.begin("Testing basic pub/sub communication between two organisations");
 
 
-var DATA = "string for test";
+//organisationName, redisHost, redisPort, publicHost, publicPort, keySpath, filesPath
+var relay1 = psc.createRelay("ORG1", "localhost", 6379, "localhost", 8000, "tmp", "tmpDownload");
+var relay2 = psc.createRelay("ORG2", "localhost", 6380, "localhost", 8001, "tmp2", "tmp2Download");
 
-var tmpFile = "temporaryFile";
-var dnldFile = "temporaryDnldFile";
+var c1 = psc.createClient("localhost", 6379);
+var c2 = psc.createClient("localhost", 6380);
 
-fs.unlinkSync(tmpFile);
-fs.unlinkSync(dnldFile);
 
-fs.writeFileSync(tmpFile, DATA);
-
-assert.callback("Should receive a message from the bus", function(end){
-    client.$upload("localhost:8080", tmpFile, function(err, uid){
-        client.$download("localhost:8080", uid, dnldFile, function(err, done){
-            var data = fs.readFileSync(dnldFile);
-            assert.equal(data, DATA);
+assert.callback("File transfers works between organisations", function(end){
+    c1.shareFile("tmp/testFile", function(err, transferId){
+        fs.unlinkSync("tmp2/testFile")
+        c2.pullFile(id, "tmp2/testFile", function(err, result){
+            assert.equal(fs.readFileSync("tmp2/testFile"), "testFile");
             end();
-        });
+        })
     });
-}
+})
+
+
+
 
 
 
