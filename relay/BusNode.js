@@ -1,6 +1,7 @@
 
 var abhttps  = require("https-auto");
 var https  = require("https");
+var fs  = require("fs");
 var connect  = require("connect");
 var connectRoute = require('connect-route');
 var request = require("request");
@@ -52,6 +53,7 @@ exports.createHttpsNode = function(port, keysFolder, filesFolder, redis, securit
 
 
     app.use(function(req,res, next){
+        console.log("Access:", req.originalUrl)
         var cert = req.connection.getPeerCertificate();
         if(!securityCheck || securityCheck(cert)){
             next();
@@ -78,23 +80,43 @@ exports.createHttpsNode = function(port, keysFolder, filesFolder, redis, securit
 
         });
 
-        router.get('/upload/:transferId', function (req, res, next) {
-            console.log("Forwarding message towards", req.params.channel, req.body);
-            redis.publish(req.params.channel, req.body);
-            res.end('upload ' );
+        router.post('/upload/:transferId', function (req, res, next) {
+            var wstream = fs.createWriteStream(filesFolder+"/"+req.params.transferId);
+            //res.pipe(wstream);
+
+            retriveContent(req, function(err, result){
+                wstream.write(result);
+                wstream.close();
+                res.end('bye');
+            });
+
+            /*res.on("end", function(){
+                console.log("Closing stream");
+                wstream.close();
+                res.end('bye');
+            })*/
         });
 
         router.get('/download/:transferId', function (req, res, next) {
-            console.log("Downloading message ", req.params.channel, req.body);
-            res.end('download');
+            var fileName = filesFolder+"/"+req.params.transferId;
+
+            var readStream = fs.createReadStream(fileName);
+            readStream.on('open', function () {
+                // This just pipes the read stream to the response object (which goes to the client)
+                readStream.pipe(res);
+            });
+            readStream.on('end', function () {
+                res.end();
+            });
+            // This catches any errors that happen while creating the readable stream (usually invalid names)
+            readStream.on('error', function(err) {
+                res.end(err);
+            });
         });
-
-
     }));
 
 
     abhttps.startMutualAuthServer(port, keysFolder, app);
-    //abhttps.startServer(port, keysFolder, app);
     return app;
 }
 
@@ -113,8 +135,13 @@ function ns_getOrganisation(orgName, callback){
     }
 }
 
-function doPost(options, result){
-    var buf = new Buffer(options.form);
+function doPost(options, fileName, resultCallback){
+    if(fileName){
+        var buf = new Buffer(fs.readFileSync(fileName));
+    } else {
+        var buf = new Buffer(options.form);
+    }
+
     options.headers =  {
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
             'Accept-Encoding': 'gzip, deflate',
@@ -125,14 +152,16 @@ function doPost(options, result){
     }
 
     var req = https.request(options, function(res) {
-
-    res.on('data', function(d) {
-                if(result){
-                    result(null, d);
-                }
-            //process.stdout.write(d);
-        });
-
+        res.on('data', function(d) {
+                   /*
+                    console.log("Data:", d.toString());
+                    if(resultCallback){
+                        resultCallback(null, d);
+                    }*/
+            });
+        if(resultCallback){
+            res.on('end', resultCallback);
+        }
     });
 
 
@@ -142,8 +171,8 @@ function doPost(options, result){
     req.on('error', function(e) {
         console.error(e);
     })
-
 }
+
 
 exports.pushMessage  = function(keysFolder, organisation, channel, strMessage){
 
@@ -164,10 +193,56 @@ exports.pushMessage  = function(keysFolder, organisation, channel, strMessage){
             //console.log(options);
             doPost(options);
             //request.post(options);
-
         });
-
-
-
     })
+}
+
+
+
+
+exports.upload  = function(keysFolder, organisation, transferId, fileName, callback){
+    ns_getOrganisation(organisation, function(err, org){
+        abhttps.getHttpsOptions(keysFolder, function(err, options){
+            //options = {};
+            options.rejectUnauthorized = false;
+            options.requestCert        = true;
+            options.agent              = false;
+
+            options.hostname = org.server;
+            options.port = org.port;
+            options.url = "https://" + org.server + ":" + org.port + "/upload/" + transferId;
+            options.path = "/upload/" + transferId;
+            options.method = 'POST';
+            doPost(options, fileName, callback);
+        });
+    })
+}
+
+
+
+exports.download  = function(keysFolder, transferId, organisation, fileName, callback){
+
+    ns_getOrganisation(organisation, function(err, org) {
+
+        abhttps.getHttpsOptions(keysFolder, function (err, options) {
+            options.rejectUnauthorized = false;
+            options.requestCert = true;
+            options.agent = false;
+
+            options.hostname = org.server;
+            options.port = org.port;
+            options.url = "https://" + org.server + ":" + org.port + "/upload/" + transferId;
+            options.path = "/download/" + transferId;
+            options.method = 'GET';
+            var writeStream = fs.createWriteStream(fileName);
+            var req = https.get(options, function (res) {
+                res.pipe(writeStream);
+                res.on('end', function () {
+                    writeStream.end();
+                    callback();
+                });
+            });
+            req.end();
+        });
+    });
 }

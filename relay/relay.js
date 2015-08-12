@@ -1,6 +1,7 @@
 
 var redis = require("redis");
 var request = require("request");
+var uuid = require('node-uuid');
 
 var RELAY_PUBSUB_CHANNEL_NAME = "PubSubRelay";
 
@@ -63,7 +64,32 @@ exports.createRelay = function(organisationName, redisHost, redisPort, publicHos
 }
 
 
-exports.createClient = function(redisHost, redisPort, redisPassword){
+function NotReadyAPI(realCallback, setter){
+    var pendingCommands = [];
+    var self = this;
+    function fakeCallback(){
+        var args = [];
+        for(var i= 0,len= arguments.length; i<len;i++){
+            args.push(arguments[i]);
+        }
+        pendingCommands.push(args);
+    }
+
+
+    this.activate = function(){
+        setter(realCallback);
+        pendingCommands.forEach(function(args){
+            realCallback.apply(self, args);
+        })
+        pendingCommands = [];
+    }
+
+    setter(fakeCallback);
+
+}
+
+
+exports.createClient = function(redisHost, redisPort, redisPassword, keysFolder){
     var client = new RedisPubSubClient(redisHost, redisPort, redisPassword);
     var oldPublish = client.publish;
     var publicFSHost;
@@ -78,14 +104,19 @@ exports.createClient = function(redisHost, redisPort, redisPassword){
         console.log("Got it:", organisationName, publicFSHost ,publicFSPort);
     })
 
-    function tryToGetConfiguration(){
-        if(!publicFSHost){
-            console.log("Trying again", redisHost, redisPort);
-            setTimeout(tryToGetConfiguration,300);
-        }
-    }
 
-    tryToGetConfiguration();
+
+    function copyFile(source, target, callback) {
+            function reject(err){
+                callback(err)
+            }
+            var rd = fs.createReadStream(source);
+            rd.on('error', reject);
+            var wr = fs.createWriteStream(target);
+            wr.on('error', reject);
+            wr.on('finish', callback);
+            rd.pipe(wr);
+    }
 
     client.publish = function(channel, message, callback){
         var strMessage;
@@ -107,10 +138,38 @@ exports.createClient = function(redisHost, redisPort, redisPassword){
         }
     }
 
-    client.shareFile = function(path, callback){
-
-        //var uid =
-
+    function shareFile(filePath, callback){
+        var uid = new Buffer(JSON.stringify({organisation:organisationName, random:uuid.v4()})).toString('base64');
+        busNode.upload(keysFolder, organisationName, uid, filePath, function(err, res){
+            callback(err, uid);
+        });
     }
+
+    function download(transferId, path, callback){
+        var js = JSON.parse(new Buffer(transferId, 'base64').toString('ascii'));
+        busNode.download(keysFolder, transferId, js.organisation,  path, callback);
+    }
+
+    var shareFileApi    =  new NotReadyAPI(shareFile,function(callback){
+        client.shareFile = callback;
+    })
+
+    var downloadFileApi = new NotReadyAPI(download,function(callback){
+        client.download = callback;
+    })
+
+
+    function tryToGetConfiguration(){
+        if(!publicFSHost){
+            console.log("...Trying:", redisHost, redisPort);
+            setTimeout(tryToGetConfiguration,300);
+        } else {
+            shareFileApi.activate();
+            downloadFileApi.activate();
+        }
+    }
+
+    tryToGetConfiguration();
+
     return client;
 }

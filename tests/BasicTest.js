@@ -5,7 +5,7 @@ var util = require("util");
 
 assert.begin("Testing basic pub/sub communication with a single node");
 
-var relay1 = psc.createRelay("ORG1", "localhost", 6379, "localhost", 8000);
+var relay1 = psc.createRelay("ORG1", "localhost", 6379, "localhost", 8000, "tmp");
 var client = psc.createClient( "localhost", 6379);
 
 
