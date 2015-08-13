@@ -1,7 +1,7 @@
 {
   "name": "pubsubchor",
-  "description": "PubSub chor: a server for implementing executable choreographies",
-  "version": "0.1.0",
+  "description": "PubSub chor: low level mechanism for implementing higly secure pub sub and file sharing between organisations. Used to implement executable choreographies in swarmCore",
+  "version": "0.5.0",
   "homepage": "https://github.com/salboaie/semantic-firewall",
   "author": {
     "name": "Alboaie Sinica",
@@ -34,7 +34,7 @@
       "url": "http://www.gnu.org/licenses/lgpl.html"
     }
   ],
-  "_id": "semantic-pubsubchor@0.1.0",
+  "_id": "pubsubchor@0.5.0",
   "dependencies" : {
   },
   "optionalDependencies": {},
