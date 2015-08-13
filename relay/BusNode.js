@@ -5,11 +5,12 @@ var fs  = require("fs");
 var connect  = require("connect");
 var connectRoute = require('connect-route');
 var request = require("request");
-var clientCertificateAuth = require('client-certificate-auth');
+//var clientCertificateAuth = require('client-certificate-auth');
 
 
 
 exports.createHttpsNode = function(port, keysFolder, filesFolder, redis, securityCheck){
+    console.log("Using keys folder ", keysFolder);
 
     var checkAuth = function(cert) {
         /*
@@ -53,7 +54,7 @@ exports.createHttpsNode = function(port, keysFolder, filesFolder, redis, securit
 
 
     app.use(function(req,res, next){
-        console.log("Access:", req.originalUrl)
+        console.log("Http request:", req.originalUrl)
         var cert = req.connection.getPeerCertificate();
         if(!securityCheck || securityCheck(cert)){
             next();
@@ -121,19 +122,17 @@ exports.createHttpsNode = function(port, keysFolder, filesFolder, redis, securit
 }
 
 
-function ns_getOrganisation(orgName, callback){
-    if(orgName == "ORG1"){
-        callback(null, {
-            server:"localhost",
-            port:8000
-        });
+function ns_getOrganisation(keyFolder, orgName, callback){
+    abhttps.lookup(keyFolder, orgName, callback);
+    /*if(orgName == "ORG1"){
+        callback(null, );
     } else {
-        callback(null, {
-            server:"localhost",
-            port:8001
-        });
-    }
+        );
+    }*/
 }
+
+
+
 
 function doPost(options, fileName, resultCallback){
     if(fileName){
@@ -176,7 +175,7 @@ function doPost(options, fileName, resultCallback){
 
 exports.pushMessage  = function(keysFolder, organisation, channel, strMessage){
 
-    ns_getOrganisation( organisation, function(err, org){
+    ns_getOrganisation( keysFolder, organisation, function(err, org){
 
         abhttps.getHttpsOptions(keysFolder, function(err, options){
             //options = {};
@@ -201,7 +200,7 @@ exports.pushMessage  = function(keysFolder, organisation, channel, strMessage){
 
 
 exports.upload  = function(keysFolder, organisation, transferId, fileName, callback){
-    ns_getOrganisation(organisation, function(err, org){
+    ns_getOrganisation(keysFolder, organisation, function(err, org){
         abhttps.getHttpsOptions(keysFolder, function(err, options){
             //options = {};
             options.rejectUnauthorized = false;
@@ -222,7 +221,7 @@ exports.upload  = function(keysFolder, organisation, transferId, fileName, callb
 
 exports.download  = function(keysFolder, transferId, organisation, fileName, callback){
 
-    ns_getOrganisation(organisation, function(err, org) {
+    ns_getOrganisation(keysFolder, organisation, function(err, org) {
 
         abhttps.getHttpsOptions(keysFolder, function (err, options) {
             options.rejectUnauthorized = false;

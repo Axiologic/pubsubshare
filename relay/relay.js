@@ -51,6 +51,7 @@ var busNode = require("./BusNode.js");
 exports.createRelay = function(organisationName, redisHost, redisPort, publicHost, publicPort, keySpath, filesPath){
   var redis = new RedisPubSubClient(redisHost, redisPort, undefined);
 
+
     var server =  busNode.createHttpsNode(publicPort, keySpath, filesPath, redis);
 
     redis.subscribe(RELAY_PUBSUB_CHANNEL_NAME, function(envelope){
