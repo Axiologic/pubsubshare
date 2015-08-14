@@ -1,8 +1,8 @@
 {
-  "name": "pubsubchor",
-  "description": "PubSub chor: low level mechanism for implementing higly secure pub sub and file sharing between organisations. Used to implement executable choreographies in swarmCore",
-  "version": "0.5.0",
-  "homepage": "https://github.com/salboaie/semantic-firewall",
+  "name": "pubsubshare",
+  "description": "pubsubshare: hide low level mechanisms for implementing secure pub sub communication and file sharing between organisations. Used to implement executable choreographies in SwarmCore",
+  "version": "0.5.2",
+  "homepage": "https://github.com/salboaie/pubsubshare",
   "author": {
     "name": "Alboaie Sinica",
     "email": "salboaie@gmail.com"
@@ -15,11 +15,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/salboaie/asynchron.git"
+    "url": "https://github.com/salboaie/pubsubshare.git"
   },
   "bugs": {
     "email": "salboaie@gmail.com",
-    "url": "https://github.com/salboaie/asynchron/issues"
+    "url": "https://github.com/salboaie/pubsubshare/issues"
   },
   "directories": {
     "lib": "./lib"
@@ -28,13 +28,12 @@
     "node": ">=0.10.0"
   },
   "main": "./lib/sf.js",
-  "licenses": [
-    {
+  "licenses": [{
       "type": "LGPL",
       "url": "http://www.gnu.org/licenses/lgpl.html"
     }
   ],
-  "_id": "pubsubchor@0.5.0",
+  "_id": "pubsubshare@0.5.2",
   "dependencies" : {
   },
   "optionalDependencies": {},

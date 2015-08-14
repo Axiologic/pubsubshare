@@ -75,8 +75,10 @@ exports.createHttpsNode = function(port, keysFolder, filesFolder, redis, securit
 
         router.post('/publish/:channel', function (req, res, next) {
             retriveContent(req, function(err, result){
-                redis.publish(req.params.channel, result);
-                res.end('publish ');
+                redis.publish(req.params.channel, result, function(err, counter){
+                    res.end(""+counter);
+                });
+
             });
 
         });

@@ -5,15 +5,16 @@ var util = require("util");
 var abhttps  = require("https-auto");
 
 
+/*
 abhttps.cacheOrganisation("ORG1", {
     server:"localhost",
     port:8000
 });
+*/
 
+//assert.begin("Testing basic pub/sub communication with a single node");
 
-assert.begin("Testing basic pub/sub communication with a single node");
-
-var relay1 = psc.createRelay("ORG1", "localhost", 6379, "localhost", 8000, "tmp2");
+var relay1 = psc.createRelay("ORG1", "localhost", 6379, "localhost", 8000, "tmp");
 var client = psc.createClient( "localhost", 6379);
 
 
