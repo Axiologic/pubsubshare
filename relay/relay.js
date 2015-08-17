@@ -14,7 +14,7 @@ var container = require("semantic-firewall").container;
     TODO: review error handling code! Still not cool enough...
 */
 
-function RedisPubSubClient(redisHost, redisPort, redisPassword, statusReporting){
+function RedisPubSubClient(redisPort, redisHost , redisPassword, statusReporting){
 
     console.log("Connecting to:", redisPort, redisHost);
     var cmdRedisClient = null;
@@ -22,34 +22,30 @@ function RedisPubSubClient(redisHost, redisPort, redisPassword, statusReporting)
 
     subscribeRedisClient.retry_delay = 1000;
     subscribeRedisClient.max_attempts = 100;
-    subscribeRedisClient.on("error", statusReporting);
+    subscribeRedisClient.on("error", onRedisReconnecting);
 
     subscribeRedisClient.on("ready", function(){
-        var publishRedisClient = redis.createClient(redisPort, redisHost, redisPassword);
-            cmdRedisClient = redis.createClient(redisPort, redisHost, redisPassword);;
+            cmdRedisClient = redis.createClient(redisPort, redisHost, redisPassword);
             cmdRedisClient.retry_delay = 2000;
             cmdRedisClient.max_attempts = 20;
-            cmdRedisClient.on("error", statusReporting);
+            cmdRedisClient.on("error", onRedisReconnecting);
             cmdRedisClient.on("reconnecting", onRedisReconnecting);
-            cmdRedisClient.on("ready", statusReporting);
+            cmdRedisClient.on("ready",onRedisReconnecting);
         });
 
-     function onRedisReconnecting(event) {
+     function onRedisReconnecting(err, res) {
          //cprint("Redis reconnecting attempt [" + event.attempt + "] with delay [" + event.delay + "] !");
-         if(pubsubRedisClient.retry_delay < 30000){
-             pubsubRedisClient.retry_delay += 1000;
+         if(!err){
+             if(cmdRedisClient.retry_delay < 30000){
+                 cmdRedisClient.retry_delay += 1000;
+             }
          }
-         statusReporting(null, cmdRedisClient);
+         statusReporting(err, cmdRedisClient);
          //localLog("redis", "Redis reconnecting attempt [" + event.attempt + "] with delay [" + event.delay + "] !", event);
      }
 
-
     var listeners = {};
 
-
-    this.getCommandsClient = function (){
-        return publishRedisClient;
-    }
 
     this.subscribe = function(channel, callback){
         listeners[channel] =  callback;
@@ -65,7 +61,10 @@ function RedisPubSubClient(redisHost, redisPort, redisPassword, statusReporting)
             } catch(err){
                 console.log("Non JSON object received from Redis!", res, channel);
             }
-            c(obj);
+            if(!obj){
+                throw new Error("Wrong message from " + channel);
+            }
+            c(obj, channel);
         }
     })
 
@@ -82,7 +81,7 @@ function RedisPubSubClient(redisHost, redisPort, redisPassword, statusReporting)
 var busNode = require("./BusNode.js");
 
 exports.createRelay = function(organisationName, redisHost, redisPort, redisPassword, publicHost, publicPort, keySpath, filesPath, statusReporting){
-  var redis = new RedisPubSubClient(redisHost, redisPort, redisPassword, statusReporting);
+  var redis = new RedisPubSubClient(redisPort, redisHost, redisPassword, statusReporting);
 
 
     var server =  busNode.createHttpsNode(publicPort, keySpath, filesPath, redis);
@@ -92,7 +91,6 @@ exports.createRelay = function(organisationName, redisHost, redisPort, redisPass
     })
 
     redis.subscribe(CONFIGURATION_REQUEST_CHANNEL_NAME, function(){
-        console.log("Configuration request",organisationName )
         redis.publish(CONFIGURATION_ANSWEAR_CHANNEL_NAME, JSON.stringify({publicHost:publicHost, publicPort:publicPort, organisationName:organisationName}));
     })
 }
@@ -122,23 +120,35 @@ function NotReadyAPI(realCallback, setter){
 
 }
 
+/*
+ statusReporting will be called with errors or with a valid redis connection that can be used to send Redis Commands
+
+ */
 
 exports.createClient = function(redisHost, redisPort, redisPassword, keysFolder, statusReporting){
-    var client = new RedisPubSubClient(redisHost, redisPort, redisPassword, statusReporting);
+
+    var client = new RedisPubSubClient(redisHost, redisPort, redisPassword,  function(err, cmdConnection){
+        if(!err){
+            client.publish(CONFIGURATION_REQUEST_CHANNEL_NAME, JSON.stringify({ask:"config"}));
+            client.subscribe(CONFIGURATION_ANSWEAR_CHANNEL_NAME, function(obj){
+                //WELL.. check also what happens after mny reconnects...
+                publicFSHost = obj.publicHost;
+                publicFSPort = obj.publicPort;
+                if(organisationName != obj.organisationName) {
+                    organisationName = obj.organisationName;
+                    console.log("Current organisation is: ", organisationName );
+                }
+
+            })
+        }
+        if(!err && cmdConnection == null) throw(new Error("cmdConnection Should not be null!"));
+        statusReporting(err, cmdConnection);
+    });
+
     var oldPublish = client.publish;
     var publicFSHost;
     var publicFSPort;
     var organisationName;
-
-    client.publish(CONFIGURATION_REQUEST_CHANNEL_NAME, JSON.stringify({ask:"config"}));
-    client.subscribe(CONFIGURATION_ANSWEAR_CHANNEL_NAME, function(obj){
-        publicFSHost = obj.publicHost;
-        publicFSPort = obj.publicPort;
-        organisationName = obj.organisationName;
-        console.log("Got it:", organisationName, publicFSHost ,publicFSPort);
-    })
-
-
 
     function copyFile(source, target, callback) {
             function reject(err){
@@ -195,7 +205,7 @@ exports.createClient = function(redisHost, redisPort, redisPassword, keysFolder,
 
     function tryToGetConfiguration(){
         if(!publicFSHost){
-            console.log("...Trying:", redisHost, redisPort);
+            console.log("Requesting current organisation name from:", redisHost, redisPort);
             setTimeout(tryToGetConfiguration,300);
         } else {
             shareFileApi.activate();

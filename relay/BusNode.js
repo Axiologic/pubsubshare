@@ -232,7 +232,7 @@ exports.download  = function(keysFolder, transferId, organisation, fileName, cal
 
             options.hostname = org.server;
             options.port = org.port;
-            options.url = "https://" + org.server + ":" + org.port + "/upload/" + transferId;
+            options.url = "https://" + org.server + ":" + org.port + "/download/" + transferId;
             options.path = "/download/" + transferId;
             options.method = 'GET';
             var writeStream = fs.createWriteStream(fileName);
