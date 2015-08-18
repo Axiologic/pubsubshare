@@ -2,6 +2,7 @@
 var redis = require("redis");
 var request = require("request");
 var uuid = require('node-uuid');
+var util = require("util");
 
 var RELAY_PUBSUB_CHANNEL_NAME = "PubSubRelay";
 
@@ -13,87 +14,6 @@ var container = require("semantic-firewall").container;
 /*
     TODO: review error handling code! Still not cool enough...
 */
-
-function RedisPubSubClient(redisPort, redisHost , redisPassword, statusReporting){
-
-    console.log("Connecting to:", redisPort, redisHost);
-    var cmdRedisClient = null;
-    var subscribeRedisClient = redis.createClient(redisPort, redisHost, redisPassword);
-
-    subscribeRedisClient.retry_delay = 1000;
-    subscribeRedisClient.max_attempts = 100;
-    subscribeRedisClient.on("error", onRedisReconnecting);
-
-    subscribeRedisClient.on("ready", function(){
-            cmdRedisClient = redis.createClient(redisPort, redisHost, redisPassword);
-            cmdRedisClient.retry_delay = 2000;
-            cmdRedisClient.max_attempts = 20;
-            cmdRedisClient.on("error", onRedisReconnecting);
-            cmdRedisClient.on("reconnecting", onRedisReconnecting);
-            cmdRedisClient.on("ready",onRedisReconnecting);
-        });
-
-     function onRedisReconnecting(err, res) {
-         //cprint("Redis reconnecting attempt [" + event.attempt + "] with delay [" + event.delay + "] !");
-         if(!err){
-             if(cmdRedisClient.retry_delay < 30000){
-                 cmdRedisClient.retry_delay += 1000;
-             }
-         }
-         statusReporting(err, cmdRedisClient);
-         //localLog("redis", "Redis reconnecting attempt [" + event.attempt + "] with delay [" + event.delay + "] !", event);
-     }
-
-    var listeners = {};
-
-
-    this.subscribe = function(channel, callback){
-        listeners[channel] =  callback;
-        subscribeRedisClient.subscribe(channel);
-    }
-
-    subscribeRedisClient.on("message", function(channel, res){
-        var c = listeners[channel];
-        var obj;
-        if(c){
-            try{
-                obj = JSON.parse(res);
-            } catch(err){
-                console.log("Non JSON object received from Redis!", res, channel);
-            }
-            if(!obj){
-                throw new Error("Wrong message from " + channel);
-            }
-            c(obj, channel);
-        }
-    })
-
-    this.publish = function(channel, message, callback){
-        cmdRedisClient.publish(channel, message, callback);
-    }
-
-    this.getCmdConnection = function(){
-        return cmdRedisClient;
-    }
-}
-
-
-var busNode = require("./BusNode.js");
-
-exports.createRelay = function(organisationName, redisHost, redisPort, redisPassword, publicHost, publicPort, keySpath, filesPath, statusReporting){
-  var redis = new RedisPubSubClient(redisPort, redisHost, redisPassword, statusReporting);
-
-
-    var server =  busNode.createHttpsNode(publicPort, keySpath, filesPath, redis);
-
-    redis.subscribe(RELAY_PUBSUB_CHANNEL_NAME, function(envelope){
-        busNode.pushMessage(keySpath, envelope.organisation, envelope.localChannel, envelope.message);
-    })
-
-    redis.subscribe(CONFIGURATION_REQUEST_CHANNEL_NAME, function(){
-        redis.publish(CONFIGURATION_ANSWEAR_CHANNEL_NAME, JSON.stringify({publicHost:publicHost, publicPort:publicPort, organisationName:organisationName}));
-    })
-}
 
 
 function NotReadyAPI(realCallback, setter){
@@ -120,6 +40,94 @@ function NotReadyAPI(realCallback, setter){
 
 }
 
+
+function RedisPubSubClient(redisPort, redisHost , redisPassword, statusReporting){
+
+    console.log("Connecting to:", redisPort, redisHost);
+    var cmdRedisClient = null;
+    var subscribeRedisClient = redis.createClient(redisPort, redisHost, redisPassword);
+    var self = this;
+    subscribeRedisClient.retry_delay = 1000;
+    subscribeRedisClient.max_attempts = 100;
+    subscribeRedisClient.on("error", onRedisReconnecting);
+
+    subscribeRedisClient.on("ready", function(){
+            cmdRedisClient = redis.createClient(redisPort, redisHost, redisPassword);
+            cmdRedisClient.retry_delay = 2000;
+            cmdRedisClient.max_attempts = 20;
+            cmdRedisClient.on("error", onRedisReconnecting);
+            cmdRedisClient.on("reconnecting", onRedisReconnecting);
+            cmdRedisClient.on("ready",onRedisReconnecting);
+        });
+
+
+    var listeners = {};
+
+
+    this.subscribe = function(channel, callback){
+        listeners[channel] =  callback;
+        subscribeRedisClient.subscribe(channel);
+    }
+
+    subscribeRedisClient.on("message", function(channel, res){
+        var c = listeners[channel];
+        var obj;
+        if(c){
+            try{
+                obj = JSON.parse(res);
+            } catch(err){
+                console.log("Non JSON object received from Redis!", res, channel);
+            }
+            if(!obj){
+                throw new Error("Wrong message from " + channel + "Got:" +  util.inspect(res));
+            }
+            c(obj, channel);
+        }
+    })
+
+    this.publishImpl  = function(channel, message, callback){
+        cmdRedisClient.publish(channel, message, callback);
+    }
+
+
+    this.publish = this.publishImpl;
+
+    this.getCmdConnection = function(){
+        return cmdRedisClient;
+    }
+
+    function onRedisReconnecting(err, res) {
+        if(!err){
+            if(cmdRedisClient.retry_delay < 30000){
+                cmdRedisClient.retry_delay += 1000;
+            }
+        }
+        statusReporting(err, cmdRedisClient);
+        //localLog("redis", "Redis reconnecting attempt [" + event.attempt + "] with delay [" + event.delay + "] !", event);
+    }
+
+}
+
+
+var busNode = require("./BusNode.js");
+
+exports.createRelay = function(organisationName, redisHost, redisPort, redisPassword, publicHost, publicPort, keySpath, filesPath, statusReporting){
+  var redis = new RedisPubSubClient(redisPort, redisHost, redisPassword, statusReporting);
+
+
+    var server =  busNode.createHttpsNode(publicPort, keySpath, filesPath, redis);
+
+    redis.subscribe(RELAY_PUBSUB_CHANNEL_NAME, function(envelope){
+        busNode.pushMessage(keySpath, envelope.organisation, envelope.localChannel, envelope.message);
+    })
+
+    redis.subscribe(CONFIGURATION_REQUEST_CHANNEL_NAME, function(){
+        redis.publish(CONFIGURATION_ANSWEAR_CHANNEL_NAME, JSON.stringify({publicHost:publicHost, publicPort:publicPort, organisationName:organisationName}));
+    })
+}
+
+
+
 /*
  statusReporting will be called with errors or with a valid redis connection that can be used to send Redis Commands
 
@@ -127,8 +135,9 @@ function NotReadyAPI(realCallback, setter){
 
 exports.createClient = function(redisHost, redisPort, redisPassword, keysFolder, statusReporting){
 
-    var client = new RedisPubSubClient(redisHost, redisPort, redisPassword,  function(err, cmdConnection){
+    var client = new RedisPubSubClient(redisPort, redisHost, redisPassword,  function(err, cmdConnection){
         if(!err){
+            publishPending.activate();
             client.publish(CONFIGURATION_REQUEST_CHANNEL_NAME, JSON.stringify({ask:"config"}));
             client.subscribe(CONFIGURATION_ANSWEAR_CHANNEL_NAME, function(obj){
                 //WELL.. check also what happens after mny reconnects...
@@ -138,14 +147,17 @@ exports.createClient = function(redisHost, redisPort, redisPassword, keysFolder,
                     organisationName = obj.organisationName;
                     console.log("Current organisation is: ", organisationName );
                 }
-
             })
         }
-        if(!err && cmdConnection == null) throw(new Error("cmdConnection Should not be null!"));
+        if(!err && cmdConnection == null) throw(new Error("Redis connection can't be null!"));
         statusReporting(err, cmdConnection);
     });
 
-    var oldPublish = client.publish;
+
+    var publishPending   =  new NotReadyAPI(publish,function(callback){
+        client.publish = callback;
+    })
+
     var publicFSHost;
     var publicFSPort;
     var organisationName;
@@ -162,7 +174,7 @@ exports.createClient = function(redisHost, redisPort, redisPassword, keysFolder,
             rd.pipe(wr);
     }
 
-    client.publish = function(channel, message, callback){
+    function publish(channel, message, callback){
         var strMessage;
         if(typeof message == "string"){
             strMessage = message;
@@ -176,11 +188,13 @@ exports.createClient = function(redisHost, redisPort, redisPassword, keysFolder,
                     organisation:res[1],
                     message:strMessage
                 }
-            oldPublish(RELAY_PUBSUB_CHANNEL_NAME, JSON.stringify(envelope), callback);
+            client.publishImpl(RELAY_PUBSUB_CHANNEL_NAME, JSON.stringify(envelope), callback);
             } else {
-            oldPublish(channel, strMessage, callback);
+            client.publishImpl(channel, strMessage, callback);
         }
     }
+
+
 
     function shareFile(filePath, callback){
         var uid = new Buffer(JSON.stringify({organisation:organisationName, random:uuid.v4()})).toString('base64');

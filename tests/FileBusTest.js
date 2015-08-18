@@ -12,17 +12,24 @@ assert.begin("Testing basic pub/sub communication between two organisations");
 
 
 //organisationName, redisHost, redisPort, publicHost, publicPort, keySpath, filesPath
-var relay1 = psc.createRelay("ORG1", "localhost", 6379, "localhost", 8000, "tmp", "tmpDownload");
+
+function errorReporting(err, res){
+    if(err){
+        console.log(err.stack);
+    }
+}
+
+var relay1 = psc.createRelay("ORG1", "localhost", 6379, undefined, "localhost", 8000, "tmp", "tmpDownload", errorReporting);
 
 
-var c1 = psc.createClient("localhost", 6379, undefined, "tmp");
+var c1 = psc.createClient("localhost", 6379, undefined, "tmp", errorReporting);
 
 
 assert.callback("File transfers works between organisations", function(end){
     c1.shareFile("tmp/testFile", function(err, transferId){
         try{
-            fs.unlinkSync("tmp2/testFile_dnld")
-        } catch(err){
+            fs.unlinkSync("tmp2/testFile_dnld");
+        } catch(error){
 
         }
         if(!err){

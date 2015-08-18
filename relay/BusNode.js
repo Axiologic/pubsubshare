@@ -46,6 +46,11 @@ exports.createHttpsNode = function(port, keysFolder, filesFolder, redis, securit
     if(!filesFolder){
         filesFolder = "uploads";
     }
+
+    if (!fs.existsSync(filesFolder)){
+        fs.mkdirSync(filesFolder);
+    }
+
     var app = connect();
 
     // gzip/deflate outgoing responses
