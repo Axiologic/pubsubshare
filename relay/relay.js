@@ -217,6 +217,11 @@ exports.createClient = function(redisHost, redisPort, redisPassword, keysFolder,
     })
 
 
+    client.unshare = function(transferId, callback){
+        var js = JSON.parse(new Buffer(transferId, 'base64').toString('ascii'));
+        busNode.unshare(keysFolder, transferId, js.organisation, callback);
+    }
+
     function tryToGetConfiguration(){
         if(!publicFSHost){
             console.log("Requesting current organisation name from:", redisHost, redisPort);

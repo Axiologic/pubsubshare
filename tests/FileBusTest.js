@@ -36,7 +36,9 @@ assert.callback("File transfers works between organisations", function(end){
             c1.download(transferId, "tmp2/testFile_dnld", function(err, result){
                 var content = fs.readFileSync("tmp2/testFile_dnld");
                 assert.equal(content, "[[[testFile content]]]");
-                end();
+                c1.unshare(transferId, function(){
+                    end();
+                });
             })
         }
     });

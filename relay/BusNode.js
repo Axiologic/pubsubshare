@@ -88,7 +88,7 @@ exports.createHttpsNode = function(port, keysFolder, filesFolder, redis, securit
 
         });
 
-        router.post('/upload/:transferId', function (req, res, next) {
+        router.post('/share/:transferId', function (req, res, next) {
             var wstream = fs.createWriteStream(filesFolder+"/"+req.params.transferId);
             //res.pipe(wstream);
 
@@ -105,7 +105,7 @@ exports.createHttpsNode = function(port, keysFolder, filesFolder, redis, securit
             })*/
         });
 
-        router.get('/download/:transferId', function (req, res, next) {
+        router.get('/share/:transferId', function (req, res, next) {
             var fileName = filesFolder+"/"+req.params.transferId;
 
             var readStream = fs.createReadStream(fileName);
@@ -119,6 +119,13 @@ exports.createHttpsNode = function(port, keysFolder, filesFolder, redis, securit
             // This catches any errors that happen while creating the readable stream (usually invalid names)
             readStream.on('error', function(err) {
                 res.end(err);
+            });
+        });
+
+        router.delete('/share/:transferId', function (req, res, next) {
+            var fileName = filesFolder+"/"+req.params.transferId;
+            fs.unlink(fileName, function(err, result){
+                res.end();
             });
         });
     }));
@@ -216,8 +223,8 @@ exports.upload  = function(keysFolder, organisation, transferId, fileName, callb
 
             options.hostname = org.server;
             options.port = org.port;
-            options.url = "https://" + org.server + ":" + org.port + "/upload/" + transferId;
-            options.path = "/upload/" + transferId;
+            options.url = "https://" + org.server + ":" + org.port + "/share/" + transferId;
+            options.path = "/share/" + transferId;
             options.method = 'POST';
             doPost(options, fileName, callback);
         });
@@ -237,8 +244,8 @@ exports.download  = function(keysFolder, transferId, organisation, fileName, cal
 
             options.hostname = org.server;
             options.port = org.port;
-            options.url = "https://" + org.server + ":" + org.port + "/download/" + transferId;
-            options.path = "/download/" + transferId;
+            options.url = "https://" + org.server + ":" + org.port + "/share/" + transferId;
+            options.path = "/share/" + transferId;
             options.method = 'GET';
             var writeStream = fs.createWriteStream(fileName);
             var req = https.get(options, function (res) {
@@ -252,3 +259,28 @@ exports.download  = function(keysFolder, transferId, organisation, fileName, cal
         });
     });
 }
+
+exports.unshare  = function(keysFolder, transferId, organisation, callback){
+
+    ns_getOrganisation(keysFolder, organisation, function(err, org) {
+
+        abhttps.getHttpsOptions(keysFolder, function (err, options) {
+            options.rejectUnauthorized = false;
+            options.requestCert = true;
+            options.agent = false;
+
+            options.hostname = org.server;
+            options.port = org.port;
+            options.url = "https://" + org.server + ":" + org.port + "/share/" + transferId;
+            options.path = "/share/" + transferId;
+            options.method = 'DELETE';
+            var req = https.get(options, function (res) {
+                if(callback){
+                    callback();
+                }
+            });
+            req.end();
+        });
+    });
+}
+
