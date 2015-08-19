@@ -114,8 +114,18 @@ var busNode = require("./BusNode.js");
 exports.createRelay = function(organisationName, redisHost, redisPort, redisPassword, publicHost, publicPort, keySpath, filesPath, statusReporting){
   var redis = new RedisPubSubClient(redisPort, redisHost, redisPassword, statusReporting);
 
+    function relayImpl(){
+        this.doDispatch = function(redis, channel, message, callback){
+            redis.publish(channel, message, callback);
+        }
+        this.dispatch = function (channel, message, callback){
+            this.doDispatch(redis, channel, message, callback);
+        }
+    }
 
-    var server =  busNode.createHttpsNode(publicPort, keySpath, filesPath, redis);
+    var relay =  new relayImpl();
+
+    var server =  busNode.createHttpsNode(publicPort, keySpath, filesPath, relay);
 
     redis.subscribe(RELAY_PUBSUB_CHANNEL_NAME, function(envelope){
         busNode.pushMessage(keySpath, envelope.organisation, envelope.localChannel, envelope.message);
@@ -124,6 +134,8 @@ exports.createRelay = function(organisationName, redisHost, redisPort, redisPass
     redis.subscribe(CONFIGURATION_REQUEST_CHANNEL_NAME, function(){
         redis.publish(CONFIGURATION_ANSWEAR_CHANNEL_NAME, JSON.stringify({publicHost:publicHost, publicPort:publicPort, organisationName:organisationName}));
     })
+
+    return relay;
 }
 
 
@@ -181,7 +193,9 @@ exports.createClient = function(redisHost, redisPort, redisPassword, keysFolder,
         } else {
             strMessage = JSON.stringify(message);
         }
-        var res = channel.match(/\w*:\/\/([\w\.]+[:]*\d*)\/(.*)/);
+
+
+        var res = channel.match(/\s*!([\w\.]+[:]*\d*)\/(.*)/);
         if(res){
                 var envelope = {
                     localChannel:res[2],

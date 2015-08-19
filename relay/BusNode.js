@@ -9,7 +9,7 @@ var request = require("request");
 
 
 
-exports.createHttpsNode = function(port, keysFolder, filesFolder, redis, securityCheck){
+exports.createHttpsNode = function(port, keysFolder, filesFolder, relay, securityCheck){
     console.log("Using keys folder ", keysFolder);
 
     var checkAuth = function(cert) {
@@ -80,10 +80,9 @@ exports.createHttpsNode = function(port, keysFolder, filesFolder, redis, securit
 
         router.post('/publish/:channel', function (req, res, next) {
             retriveContent(req, function(err, result){
-                redis.publish(req.params.channel, result, function(err, counter){
+                relay.dispatch(req.params.channel, result, function(err, counter){
                     res.end(""+counter);
                 });
-
             });
 
         });
