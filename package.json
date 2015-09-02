@@ -1,7 +1,7 @@
 {
   "name": "pubsubshare",
   "description": "pubsubshare: hide low level mechanisms for implementing secure pub sub communication and file sharing between organisations. Used to implement executable choreographies in SwarmCore",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "homepage": "https://github.com/salboaie/pubsubshare",
   "author": {
     "name": "Alboaie Sinica",
@@ -33,7 +33,7 @@
       "url": "http://www.gnu.org/licenses/lgpl.html"
     }
   ],
-  "_id": "pubsubshare@0.6.0",
+  "_id": "pubsubshare@0.6.1",
   "dependencies" : {
     "connect"               : ">=3.4.0",
     "connect-route"         : ">=0.0.0",

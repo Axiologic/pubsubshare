@@ -28,12 +28,24 @@ exports.createHttpsNode = function(port, keysFolder, filesFolder, relay, securit
         //return cert.subject.CN === 'Doug Prishpreed';
     };
 
+    function smoothRetrieve(req,chunkCallback,endCallback){
+        req.on("data",function(chunk){
+            console.log('Body size: ',chunk.length);
+            chunkCallback(chunk);
+        });
+        req.on("end",function(){
+            endCallback();
+        });
+
+    }
+
     function retriveContent(req, callback){
         var bodyStr = "";
         req.on("data",function(chunk){
             bodyStr += chunk.toString();
         });
         req.on("end",function(){
+            console.log('BODY size: ',bodyStr.length)
             callback(null, bodyStr);
         });
     }
@@ -88,12 +100,10 @@ exports.createHttpsNode = function(port, keysFolder, filesFolder, relay, securit
         });
 
         router.post('/share/:transferId', function (req, res, next) {
-            var wstream = fs.createWriteStream(filesFolder+"/"+req.params.transferId);
-            //res.pipe(wstream);
-
-            retriveContent(req, function(err, result){
-                wstream.write(result);
-                wstream.close();
+            var filePath = filesFolder+"/"+req.params.transferId;
+            smoothRetrieve(req, function(result){
+                fs.appendFileSync(filePath,result);
+            },function(){
                 res.end('bye');
             });
 
@@ -144,23 +154,72 @@ function ns_getOrganisation(keyFolder, orgName, callback){
     }*/
 }
 
+function gradualRead(filePath,chunkSize,fileSize,chunkCallback,endCallback){
 
+    var buffer = new Buffer(chunkSize);
+
+    fs.open(filePath, 'r', function(err, fd) {
+        if (err) throw err;
+        var currentSize = 0;
+        var end = false;
+        function readNextChunk() {
+
+            fs.read(fd, buffer, 0, chunkSize, null, function(err, nread) {
+
+                if (err) throw err;
+
+                if (nread === 0) {
+                    // done reading file, do any necessary finalization steps
+
+                    fs.close(fd, function(err) {
+                        if (err) throw err;
+                    });
+                    return;
+                }
+
+                var data;
+                currentSize += nread;
+
+                if (nread < chunkSize) {
+
+                   data = new Buffer(nread);
+                   buffer.copy(data,0,0,nread);
+                }
+                else
+                    data = buffer;
+
+                if(nread === 0 || currentSize >= fileSize){
+                    end=true;
+                }
+
+                chunkCallback(data);
+                // do something with `data`, then call `readNextChunk();`
+            });
+        }
+        if(end){
+            endCallback();
+        }else {
+            readNextChunk();
+        }
+    });
+}
 
 
 function doPost(options, fileName, resultCallback){
+    var size,buf;
     if(fileName){
-        var buf = new Buffer(fs.readFileSync(fileName));
+         size = fs.statSync(fileName).size;
     } else {
-        var buf = new Buffer(options.form);
+         buf = new Buffer(options.form);
+         size = Buffer.byteLength(options.form);
     }
-
     options.headers =  {
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
             'Accept-Encoding': 'gzip, deflate',
             'Accept-Language': 'en-US,en;q=0.5',
             'User-Agent': 'PubSub Choreography 1.0',
             'Content-Type': 'application/x-www-form-urlencoded',
-            'Content-Length': buf.length
+            'Content-Length': size
     }
 
     var req = https.request(options, function(res) {
@@ -176,9 +235,12 @@ function doPost(options, fileName, resultCallback){
         }
     });
 
-
-    req.write(buf);
-    req.end();
+    if(buf) {
+        req.write(buf);
+        req.end();
+    }else{
+        gradualRead(fileName,500*1024,size,req.write.bind(req),req.end.bind(req));
+    }
 
     req.on('error', function(e) {
         console.error(e);

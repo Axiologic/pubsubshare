@@ -3,7 +3,6 @@ var redis = require("redis");
 var request = require("request");
 var uuid = require('node-uuid');
 var util = require("util");
-
 var RELAY_PUBSUB_CHANNEL_NAME = "PubSubRelay";
 
 var CONFIGURATION_REQUEST_CHANNEL_NAME = "PubSub_CONFIGURATION_CHANNEL_REQUEST";
