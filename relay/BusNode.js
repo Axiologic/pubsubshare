@@ -71,7 +71,7 @@ exports.createHttpsNode = function(port, keysFolder, filesFolder, relay, securit
 
 
     app.use(function(req,res, next){
-        console.log("Http request:", req.originalUrl)
+        console.log("Http request:", req.originalUrl);
         var cert = req.connection.getPeerCertificate();
         if(!securityCheck || securityCheck(cert)){
             next();

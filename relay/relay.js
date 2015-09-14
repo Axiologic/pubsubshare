@@ -185,6 +185,7 @@ exports.createClient = function(redisHost, redisPort, redisPassword, keysFolder,
             rd.pipe(wr);
     }
 
+
     function publish(channel, message, callback){
         var strMessage;
         if(typeof message == "string"){
@@ -206,8 +207,6 @@ exports.createClient = function(redisHost, redisPort, redisPassword, keysFolder,
             client.publishImpl(channel, strMessage, callback);
         }
     }
-
-
 
     function shareFile(filePath, callback){
         var uid = new Buffer(JSON.stringify({organisation:organisationName, random:uuid.v4()})).toString('base64');
