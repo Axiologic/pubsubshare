@@ -241,7 +241,7 @@ function doPost(options, fileName, resultCallback){
     }
 
     req.on('error', function(e) {
-        console.error(e);
+        console.log("Https POST request fail towards:", options);
     })
 }
 
