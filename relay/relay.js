@@ -131,7 +131,11 @@ exports.createRelay = function(organisationName, redisHost, redisPort, redisPass
     })
 
     redis.subscribe(CONFIGURATION_REQUEST_CHANNEL_NAME, function(){
-        redis.publish(CONFIGURATION_ANSWEAR_CHANNEL_NAME, JSON.stringify({publicHost:publicHost, publicPort:publicPort, organisationName:organisationName}));
+        if(organisationName){
+            redis.publish(CONFIGURATION_ANSWEAR_CHANNEL_NAME, JSON.stringify({publicHost:publicHost, publicPort:publicPort, organisationName:organisationName}));
+        } else {
+            console.log("Organisation name requested but not available!");
+        }
     })
 
     return relay;
@@ -146,12 +150,17 @@ exports.createRelay = function(organisationName, redisHost, redisPort, redisPass
 
 exports.createClient = function(redisHost, redisPort, redisPassword, keysFolder, statusReporting){
 
+    var publicFSHost;
+    var publicFSPort;
+    var organisationName;
+
+
     var client = new RedisPubSubClient(redisPort, redisHost, redisPassword,  function(err, cmdConnection){
         if(!err){
             publishPending.activate();
             client.publish(CONFIGURATION_REQUEST_CHANNEL_NAME, JSON.stringify({ask:"config"}));
             client.subscribe(CONFIGURATION_ANSWEAR_CHANNEL_NAME, function(obj){
-                //WELL.. check also what happens after mny reconnects...
+                //WELL.. check also what happens after many reconnects...
                 publicFSHost = obj.publicHost;
                 publicFSPort = obj.publicPort;
                 if(organisationName != obj.organisationName) {
@@ -169,9 +178,6 @@ exports.createClient = function(redisHost, redisPort, redisPassword, keysFolder,
         client.publish = callback;
     })
 
-    var publicFSHost;
-    var publicFSPort;
-    var organisationName;
 
     function copyFile(source, target, callback) {
             function reject(err){
@@ -237,7 +243,7 @@ exports.createClient = function(redisHost, redisPort, redisPassword, keysFolder,
     function tryToGetConfiguration(){
         if(!publicFSHost){
             console.log("Requesting current organisation name from:", redisHost, redisPort);
-            setTimeout(tryToGetConfiguration,300);
+            setTimeout(tryToGetConfiguration,1000);
         } else {
             shareFileApi.activate();
             downloadFileApi.activate();
