@@ -155,10 +155,14 @@ exports.createClient = function(redisHost, redisPort, redisPassword, keysFolder,
     var organisationName;
 
 
+    function askConfig(){
+        client.publish(CONFIGURATION_REQUEST_CHANNEL_NAME, JSON.stringify({ask:"config"}));
+    }
+
     var client = new RedisPubSubClient(redisPort, redisHost, redisPassword,  function(err, cmdConnection){
         if(!err){
             publishPending.activate();
-            client.publish(CONFIGURATION_REQUEST_CHANNEL_NAME, JSON.stringify({ask:"config"}));
+            askConfig();
             client.subscribe(CONFIGURATION_ANSWEAR_CHANNEL_NAME, function(obj){
                 //WELL.. check also what happens after many reconnects...
                 publicFSHost = obj.publicHost;
@@ -243,6 +247,7 @@ exports.createClient = function(redisHost, redisPort, redisPassword, keysFolder,
     function tryToGetConfiguration(){
         if(!publicFSHost){
             console.log("Requesting current organisation name from:", redisHost, redisPort);
+            askConfig();
             setTimeout(tryToGetConfiguration,1000);
         } else {
             shareFileApi.activate();
