@@ -156,7 +156,7 @@ exports.createClient = function(redisHost, redisPort, redisPassword, keysFolder,
 
     function askConfig(){
         console.log("Publishing config request...", !client);
-        client.publish(CONFIGURATION_REQUEST_CHANNEL_NAME, JSON.stringify({ask:"config"}));
+        client.publish(CONFIGURATION_REQUEST_CHANNEL_NAME, JSON.stringify({ask:"config"}), function(){});
     }
 
     var client = new RedisPubSubClient(redisPort, redisHost, redisPassword,  function(err, cmdConnection){
