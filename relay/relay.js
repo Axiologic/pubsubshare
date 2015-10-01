@@ -154,8 +154,8 @@ exports.createClient = function(redisHost, redisPort, redisPassword, keysFolder,
     var publicFSPort;
     var organisationName;
 
-
     function askConfig(){
+        console.log("Publishing config request...", !client);
         client.publish(CONFIGURATION_REQUEST_CHANNEL_NAME, JSON.stringify({ask:"config"}));
     }
 
@@ -244,11 +244,14 @@ exports.createClient = function(redisHost, redisPort, redisPassword, keysFolder,
         busNode.unshare(keysFolder, transferId, js.organisation, callback);
     }
 
+    var timeOut = 200;
+
     function tryToGetConfiguration(){
         if(!publicFSHost){
             console.log("Requesting current organisation name from:", redisHost, redisPort);
             askConfig();
-            setTimeout(tryToGetConfiguration,300);
+            setTimeout(tryToGetConfiguration,timeOut);
+            timeOut += 1000;
         } else {
             console.log("Activating file bus components...");
             shareFileApi.activate();
