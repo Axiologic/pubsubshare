@@ -30,7 +30,6 @@ exports.createHttpsNode = function(port, keysFolder, filesFolder, relay, securit
 
     function smoothRetrieve(req,chunkCallback,endCallback){
         req.on("data",function(chunk){
-            console.log('Body size: ',chunk.length);
             chunkCallback(chunk);
         });
         req.on("end",function(){
@@ -249,9 +248,9 @@ function doPost(options, fileName, resultCallback){
 exports.pushMessage  = function(keysFolder, organisation, channel, strMessage){
 
     ns_getOrganisation( keysFolder, organisation, function(err, org){
-
         abhttps.getHttpsOptions(keysFolder, function(err, options){
             //options = {};
+
             options.rejectUnauthorized = false;
             options.requestCert        = true;
             options.agent              = false;
@@ -276,7 +275,6 @@ exports.pushMessage  = function(keysFolder, organisation, channel, strMessage){
 exports.upload  = function(keysFolder, organisation, transferId, fileName, callback){
     ns_getOrganisation(keysFolder, organisation, function(err, org){
         abhttps.getHttpsOptions(keysFolder, function(err, options){
-            //options = {};
             options.rejectUnauthorized = false;
             options.requestCert        = true;
             options.agent              = false;
@@ -296,7 +294,6 @@ exports.upload  = function(keysFolder, organisation, transferId, fileName, callb
 exports.download  = function(keysFolder, transferId, organisation, fileName, callback){
 
     ns_getOrganisation(keysFolder, organisation, function(err, org) {
-
         abhttps.getHttpsOptions(keysFolder, function (err, options) {
             options.rejectUnauthorized = false;
             options.requestCert = true;
@@ -312,6 +309,7 @@ exports.download  = function(keysFolder, transferId, organisation, fileName, cal
                 res.pipe(writeStream);
                 res.on('end', function () {
                     writeStream.end();
+                    console.log("Finishing download....");
                     callback();
                 });
             });
@@ -323,7 +321,6 @@ exports.download  = function(keysFolder, transferId, organisation, fileName, cal
 exports.unshare  = function(keysFolder, transferId, organisation, callback){
 
     ns_getOrganisation(keysFolder, organisation, function(err, org) {
-
         abhttps.getHttpsOptions(keysFolder, function (err, options) {
             options.rejectUnauthorized = false;
             options.requestCert = true;

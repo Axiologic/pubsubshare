@@ -248,8 +248,9 @@ exports.createClient = function(redisHost, redisPort, redisPassword, keysFolder,
         if(!publicFSHost){
             console.log("Requesting current organisation name from:", redisHost, redisPort);
             askConfig();
-            setTimeout(tryToGetConfiguration,1000);
+            setTimeout(tryToGetConfiguration,300);
         } else {
+            console.log("Activating file bus components...");
             shareFileApi.activate();
             downloadFileApi.activate();
         }
