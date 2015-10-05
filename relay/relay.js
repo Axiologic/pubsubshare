@@ -85,7 +85,12 @@ function RedisPubSubClient(redisPort, redisHost , redisPassword, statusReporting
     })
 
     this.publishImpl  = function(channel, message, callback){
-        cmdRedisClient.publish(channel, message, callback);
+        console.log("Callback is:", callback);
+        if(callback){
+            cmdRedisClient.publish(channel, message, callback);
+        } else {
+            cmdRedisClient.publish(channel, message, undefined);
+        }
     }
 
 

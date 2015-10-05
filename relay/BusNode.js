@@ -9,7 +9,7 @@ var request = require("request");
 
 
 
-exports.createHttpsNode = function(port, keysFolder, filesFolder, relay, securityCheck){
+exports.createHttpsNode = function(port, keysFolder, filesFolder, relay, securityCheck, useMutual){
     console.log("Using keys folder ", keysFolder);
 
     var checkAuth = function(cert) {
@@ -136,8 +136,11 @@ exports.createHttpsNode = function(port, keysFolder, filesFolder, relay, securit
         });
     }));
 
-
-    abhttps.startMutualAuthServer(port, keysFolder, app);
+    if(useMutual){
+        abhttps.startMutualAuthServer(port, keysFolder, app);
+    } else {
+        abhttps.startServer(port, keysFolder, app);
+    }
     return app;
 }
 
