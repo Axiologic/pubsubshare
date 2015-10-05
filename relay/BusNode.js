@@ -25,7 +25,6 @@ exports.createHttpsNode = function(port, keysFolder, filesFolder, relay, securit
          */
         console.log("Checking");
         return true;
-        //return cert.subject.CN === 'Doug Prishpreed';
     };
 
     function smoothRetrieve(req,chunkCallback,endCallback){
@@ -35,7 +34,6 @@ exports.createHttpsNode = function(port, keysFolder, filesFolder, relay, securit
         req.on("end",function(){
             endCallback();
         });
-
     }
 
     function retriveContent(req, callback){
@@ -68,6 +66,7 @@ exports.createHttpsNode = function(port, keysFolder, filesFolder, relay, securit
     app.use(compression());*/
 
 
+    /*
     app.use(function(req,res, next){
         var cert = req.connection.getPeerCertificate();
         if(!securityCheck || securityCheck(cert)){
@@ -76,7 +75,7 @@ exports.createHttpsNode = function(port, keysFolder, filesFolder, relay, securit
             console.log("Security check failed!", cert);
         }
 
-    });
+    }); */
 
     //app.use(clientCertificateAuth(checkAuth));
 
