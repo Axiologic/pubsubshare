@@ -162,7 +162,7 @@ function gradualRead(filePath,chunkSize,fileSize,chunkCallback,endCallback){
         var currentSize = 0;
         var currentChunkSize = 0;
 
-        function endGame(){
+        function endTransfer(){
             fs.close(fd);
             endCallback();
             return true; //the true nature of the file ;)
@@ -171,20 +171,23 @@ function gradualRead(filePath,chunkSize,fileSize,chunkCallback,endCallback){
         function readNextChunk() {
 
             fs.read(fd, buffer, 0, chunkSize, null, function(err, nread ) {
+                console.log("Reading ", nread, " bytes from ", filePath);
 
-                if (err) throw err;
+                if (err) {
+                    console.log("Error while reading ",filePath, err);
+                }
 
+                /*
                 if (nread === 0) {
                     // done reading file, do any necessary finalization steps
-                    return endGame();
-                }
+                    return endTransfer();
+                }*/
 
                 var data;
                 currentSize      += nread;
                 currentChunkSize += nread;
 
                 if (nread < chunkSize) {
-
                    data = new Buffer(nread);
                    buffer.copy(data,0,0,nread);
                 }
@@ -192,14 +195,16 @@ function gradualRead(filePath,chunkSize,fileSize,chunkCallback,endCallback){
                     data = buffer;
 
                 if(currentSize == fileSize){
-                    return endGame();
+                    return endTransfer();
                 }
                 if(currentSize == currentChunkSize){
                     currentChunkSize = 0;
                     readNextChunk();
                 }
 
-                chunkCallback(data);
+                if(nread > 0 ){
+                    chunkCallback(data);
+                }
                 // do something with `data`, then call `readNextChunk();`
             });
         }
@@ -248,12 +253,14 @@ function doPost(options, fileName, resultCallback){
                         resultCallback(null, d);
                     }*/
             });
-        if(resultCallback){
-            res.on('end', function(){
-                ended=true;
+
+        res.on('end', function(){
+            ended = true;
+            if(resultCallback){
                 resultCallback();
-            });
-        }
+            }
+        });
+
     });
 
     if(buf) {
