@@ -160,24 +160,28 @@ function gradualRead(filePath,chunkSize,fileSize,chunkCallback,endCallback){
     fs.open(filePath, 'r', function(err, fd) {
         if (err) throw err;
         var currentSize = 0;
-        var end = false;
+        var currentChunkSize = 0;
+
+        function endGame(){
+            fs.close(fd);
+            endCallback();
+            return true; //the true nature of the file ;)
+        }
+
         function readNextChunk() {
 
-            fs.read(fd, buffer, 0, chunkSize, null, function(err, nread) {
+            fs.read(fd, buffer, 0, chunkSize, null, function(err, nread ) {
 
                 if (err) throw err;
 
                 if (nread === 0) {
                     // done reading file, do any necessary finalization steps
-
-                    fs.close(fd, function(err) {
-                        if (err) throw err;
-                    });
-                    return;
+                    return endGame();
                 }
 
                 var data;
-                currentSize += nread;
+                currentSize      += nread;
+                currentChunkSize += nread;
 
                 if (nread < chunkSize) {
 
@@ -187,19 +191,20 @@ function gradualRead(filePath,chunkSize,fileSize,chunkCallback,endCallback){
                 else
                     data = buffer;
 
-                if(nread === 0 || currentSize >= fileSize){
-                    end=true;
+                if(currentSize == fileSize){
+                    return endGame();
+                }
+                if(currentSize == currentChunkSize){
+                    currentChunkSize = 0;
+                    readNextChunk();
                 }
 
                 chunkCallback(data);
                 // do something with `data`, then call `readNextChunk();`
             });
         }
-        if(end){
-            endCallback();
-        }else {
-            readNextChunk();
-        }
+
+        readNextChunk();
     });
 }
 
@@ -210,10 +215,10 @@ function doPost(options, fileName, resultCallback){
     function notEnded(){
         if(ended == undefined){
             ended = false;
-            setTimeout(notEnded,30);
+            setTimeout(notEnded,30*1000);
         }else {
             if (!ended) {
-                setTimeout(notEnded, 30);
+                setTimeout(notEnded, 30*1000);
                 console.log('Post request for url ', options.url, ' still not ended after 30s');
             }
         }
