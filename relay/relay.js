@@ -85,7 +85,12 @@ function RedisPubSubClient(redisPort, redisHost , redisPassword, statusReporting
     })
 
     this.publishImpl  = function(channel, message, callback){
-        cmdRedisClient.publish(channel, message, callback);
+        //console.log("Callback is:", callback);
+        if(callback){
+            cmdRedisClient.publish(channel, message, callback);
+        } else {
+            cmdRedisClient.publish(channel, message, undefined);
+        }
     }
 
 
@@ -154,9 +159,9 @@ exports.createClient = function(redisHost, redisPort, redisPassword, keysFolder,
     var publicFSPort;
     var organisationName;
 
-
     function askConfig(){
-        client.publish(CONFIGURATION_REQUEST_CHANNEL_NAME, JSON.stringify({ask:"config"}));
+        console.log("Publishing config request...", !client);
+        client.publish(CONFIGURATION_REQUEST_CHANNEL_NAME, JSON.stringify({ask:"config"}), function(){});
     }
 
     var client = new RedisPubSubClient(redisPort, redisHost, redisPassword,  function(err, cmdConnection){
@@ -244,11 +249,14 @@ exports.createClient = function(redisHost, redisPort, redisPassword, keysFolder,
         busNode.unshare(keysFolder, transferId, js.organisation, callback);
     }
 
+    var timeOut = 200;
+
     function tryToGetConfiguration(){
         if(!publicFSHost){
             console.log("Requesting current organisation name from:", redisHost, redisPort);
             askConfig();
-            setTimeout(tryToGetConfiguration,300);
+            setTimeout(tryToGetConfiguration,timeOut);
+            timeOut += 1000;
         } else {
             console.log("Activating file bus components...");
             shareFileApi.activate();
