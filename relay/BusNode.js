@@ -201,8 +201,22 @@ function gradualRead(filePath,chunkSize,fileSize,chunkCallback,endCallback){
     });
 }
 
-
 function doPost(options, fileName, resultCallback){
+    var ended=undefined;
+
+
+    function notEnded(){
+        if(ended == undefined){
+            ended = false;
+            setTimeout(notEnded,30);
+        }else {
+            if (!ended) {
+                setTimeout(notEnded, 30);
+                console.log('Post request for url ', options.url, ' still not ended after 30s');
+            }
+        }
+    }
+    notEnded();
     var size,buf;
     if(fileName){
          size = fs.statSync(fileName).size;
@@ -228,7 +242,10 @@ function doPost(options, fileName, resultCallback){
                     }*/
             });
         if(resultCallback){
-            res.on('end', resultCallback);
+            res.on('end', function(){
+                ended=true;
+                resultCallback();
+            });
         }
     });
 
@@ -240,7 +257,7 @@ function doPost(options, fileName, resultCallback){
     }
 
     req.on('error', function(e) {
-        console.log("Https POST request fail towards:", options);
+        console.log("Https POST request fail towards:",options.url, e);
     })
 }
 
