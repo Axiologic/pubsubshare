@@ -155,80 +155,39 @@ function ns_getOrganisation(keyFolder, orgName, callback){
 
 function gradualRead(filePath,chunkSize,fileSize,chunkCallback,endCallback){
 
-    var buffer = new Buffer(chunkSize);
-
     fs.open(filePath, 'r', function(err, fd) {
-        if (err) throw err;
-        var currentSize = 0;
-        var currentChunkSize = 0;
-
-        function endTransfer(){
-            fs.close(fd);
-            endCallback();
-            return true; //the true nature of the file ;)
+        if (err) {
+            console.log("Error while reading ",filePath, err);
         }
 
         function readNextChunk() {
-
-            fs.read(fd, buffer, 0, chunkSize, null, function(err, nread ) {
+            var buffer = new Buffer(chunkSize);
+            fs.read(fd, buffer, 0, chunkSize, null, function(err, nread , readBuffer) {
                 console.log("Reading ", nread, " bytes from ", filePath);
-
                 if (err) {
                     console.log("Error while reading ",filePath, err);
                 }
 
-                /*
-                if (nread === 0) {
-                    // done reading file, do any necessary finalization steps
-                    return endTransfer();
-                }*/
-
-                var data;
-                currentSize      += nread;
-                currentChunkSize += nread;
-
-                if (nread < chunkSize) {
-                   data = new Buffer(nread);
-                   buffer.copy(data,0,0,nread);
-                }
-                else
-                    data = buffer;
-
-                if(currentSize == fileSize){
-                    return endTransfer();
-                }
-                if(currentSize == currentChunkSize){
-                    currentChunkSize = 0;
-                    readNextChunk();
-                }
+                /*var data = new Buffer(nread);
+                readBuffer.copy(data,0,0, nread);*/
 
                 if(nread > 0 ){
-                    chunkCallback(data);
+                    chunkCallback(readBuffer);
                 }
-                // do something with `data`, then call `readNextChunk();`
+
+                if (nread < chunkSize) {
+                    fs.close(fd);
+                    endCallback();
+                    return ;
+                }
+                readNextChunk();
             });
         }
-
         readNextChunk();
     });
 }
 
 function doPost(options, fileName, resultCallback){
-    var ended=undefined;
-
-
-    function notEnded(){
-        if(ended == undefined){
-            ended = false;
-            setTimeout(notEnded,30*1000);
-        }else {
-            if (!ended) {
-                setTimeout(notEnded, 30*1000);
-                console.log('Post request for url ', options.url, ' still not ended after 30s');
-            }
-        }
-    }
-    notEnded();
     var size,buf;
     if(fileName){
          size = fs.statSync(fileName).size;
@@ -247,27 +206,21 @@ function doPost(options, fileName, resultCallback){
 
     var req = https.request(options, function(res) {
         res.on('data', function(d) {
-                   /*
-                    console.log("Data:", d.toString());
-                    if(resultCallback){
-                        resultCallback(null, d);
-                    }*/
+                    /*  console.log("Data:", d.toString());
+                    */
             });
-
-        res.on('end', function(){
-            ended = true;
-            if(resultCallback){
-                resultCallback();
-            }
-        });
-
     });
 
     if(buf) {
         req.write(buf);
         req.end();
     }else{
-        gradualRead(fileName,500*1024,size,req.write.bind(req),req.end.bind(req));
+        gradualRead(fileName,500*1024,size,req.write.bind(req),function(){
+            if(resultCallback){
+                resultCallback();
+            }
+            req.end();
+        });
     }
 
     req.on('error', function(e) {
