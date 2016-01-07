@@ -115,7 +115,8 @@ function RedisPubSubClient(redisPort, redisHost , redisPassword, statusReporting
 
 var busNode = require("./BusNode.js");
 
-exports.createRelay = function(organisationName, redisHost, redisPort, redisPassword, publicHost, publicPort, keySpath, filesPath, statusReporting){
+exports.createRelay = function(httpsEnabled,organisationName, redisHost, redisPort, redisPassword, publicHost, publicPort, keySpath, filesPath, statusReporting){
+
   var redis = new RedisPubSubClient(redisPort, redisHost, redisPassword, statusReporting);
 
     function relayImpl(){
@@ -128,8 +129,9 @@ exports.createRelay = function(organisationName, redisHost, redisPort, redisPass
     }
 
     var relay =  new relayImpl();
-
-    var server =  busNode.createHttpsNode(publicPort, keySpath, filesPath, relay);
+    if(httpsEnabled){
+        var server =  busNode.createHttpsNode(publicPort, keySpath, filesPath, relay);
+    }
 
     redis.subscribe(RELAY_PUBSUB_CHANNEL_NAME, function(envelope){
         busNode.pushMessage(keySpath, envelope.organisation, envelope.localChannel, envelope.message);
@@ -160,7 +162,7 @@ exports.createClient = function(redisHost, redisPort, redisPassword, keysFolder,
     var organisationName;
 
     function askConfig(){
-        console.log("Publishing config request...", !client);
+        console.log("Publishing config request...");
         client.publish(CONFIGURATION_REQUEST_CHANNEL_NAME, JSON.stringify({ask:"config"}), function(){});
     }
 
