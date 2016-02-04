@@ -2,7 +2,7 @@
  * Created by salboaie on 5/25/15.
 
 
-var container           = require("semantic-firewall").container;
+var container           = require("safebox").container;
 
 
 function NameService(redisPersistence, localConfig){

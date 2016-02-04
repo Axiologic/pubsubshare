@@ -1,5 +1,5 @@
 var psc = require("../relay/relay.js");
-var assert = require("semantic-firewall").assert;
+var assert = require("double-check").assert;
 
 assert.begin("Testing basic pub/sub communication between two organisations");
 

@@ -8,7 +8,7 @@ var RELAY_PUBSUB_CHANNEL_NAME = "PubSubRelay";
 var CONFIGURATION_REQUEST_CHANNEL_NAME = "PubSub_CONFIGURATION_CHANNEL_REQUEST";
 var CONFIGURATION_ANSWEAR_CHANNEL_NAME = "PubSub_CONFIGURATION_CHANNEL_ANSWEAR";
 
-var container = require("semantic-firewall").container;
+var container = require("safebox").container;
 
 /*
     TODO: review error handling code! Still not cool enough...

@@ -1,5 +1,5 @@
 var psc = require("../relay/relay.js");
-var assert = require("semantic-firewall").assert;
+var assert = require("double-check").assert;
 var util = require("util");
 
 var abhttps  = require("https-auto");

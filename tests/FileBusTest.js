@@ -5,7 +5,7 @@ eyJ1cmwiOiJsb2NhbGhvc3Q6MzAwMCIsImNvZGUiOiJRMFZwVFRoa1pYbFZjV05rU1VFOVBRbz0iLCJr
 */
 
 var psc = require("../relay/relay.js");
-var assert = require("semantic-firewall").assert;
+var assert = require("double-check").assert;
 var fs = require("fs");
 
 assert.begin("Testing basic file transfer");
