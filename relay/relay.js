@@ -1,6 +1,6 @@
 
 var redis = require("redis");
-var request = require("request");
+
 var uuid = require('node-uuid');
 var util = require("util");
 var RELAY_PUBSUB_CHANNEL_NAME = "PubSubRelay";
@@ -117,7 +117,11 @@ var busNode = require("./BusNode.js");
 
 exports.createRelay = function(httpsEnabled,organisationName, redisHost, redisPort, redisPassword, publicHost, publicPort, keySpath, filesPath, statusReporting){
 
-  var redis = new RedisPubSubClient(redisPort, redisHost, redisPassword, statusReporting);
+  var redis = new RedisPubSubClient(redisPort, redisHost, redisPassword, function(err){
+     if(err){
+         statusReporting(err);
+     }
+  });
 
     function relayImpl(){
         this.doDispatch = function(redis, channel, message, callback){
@@ -130,7 +134,7 @@ exports.createRelay = function(httpsEnabled,organisationName, redisHost, redisPo
 
     var relay =  new relayImpl();
     if(httpsEnabled){
-        var server =  busNode.createHttpsNode(publicPort, keySpath, filesPath, relay);
+        relay.server = busNode.createHttpsNode(publicPort, keySpath, filesPath, relay);
     }
 
     redis.subscribe(RELAY_PUBSUB_CHANNEL_NAME, function(envelope){
@@ -144,7 +148,7 @@ exports.createRelay = function(httpsEnabled,organisationName, redisHost, redisPo
             console.log("Organisation name requested but not available!");
         }
     })
-
+    statusReporting(null, relay);
     return relay;
 }
 
@@ -253,11 +257,11 @@ exports.createClient = function(redisHost, redisPort, redisPassword, keysFolder,
 
     var timeOut = 200;
 
-    function tryToGetConfiguration(){
+    function checkIfWeGotConfiguration(){
         if(!publicFSHost){
             console.log("Requesting current organisation name from:", redisHost, redisPort);
             askConfig();
-            setTimeout(tryToGetConfiguration,timeOut);
+            setTimeout(checkIfWeGotConfiguration, timeOut);
             timeOut += 1000;
         } else {
             console.log("Activating file bus components...");
@@ -266,7 +270,7 @@ exports.createClient = function(redisHost, redisPort, redisPassword, keysFolder,
         }
     }
 
-    tryToGetConfiguration();
+    checkIfWeGotConfiguration();
 
     return client;
 }
