@@ -5,6 +5,7 @@ var fs  = require("fs");
 var connect  = require("connect");
 var connectRoute = require('connect-route');
 var request = require("request");
+var checksum = require('checksum')
 //var clientCertificateAuth = require('client-certificate-auth');
 
 
@@ -257,8 +258,21 @@ exports.pushMessage  = function(keysFolder, organisation, channel, strMessage){
 
 
 exports.upload  = function(keysFolder, organisation, transferId, fileName, callback){
+
     ns_getOrganisation(keysFolder, organisation, function(err, org){
+
+        if(err){
+            callback(err);
+            return;
+        }
+
         abhttps.getHttpsOptions(keysFolder, function(err, options){
+
+            if(err){
+                callback(err);
+                return;
+            }
+
             options.rejectUnauthorized = false;
             options.requestCert        = true;
             options.agent              = false;
@@ -278,7 +292,19 @@ exports.upload  = function(keysFolder, organisation, transferId, fileName, callb
 exports.download  = function(keysFolder, transferId, organisation, fileName, callback){
 
     ns_getOrganisation(keysFolder, organisation, function(err, org) {
+        if (err) {
+            callback(err);
+            return;
+        }
+
+
         abhttps.getHttpsOptions(keysFolder, function (err, options) {
+
+            if (err) {
+                callback(err);
+                return;
+            }
+
             options.rejectUnauthorized = false;
             options.requestCert = true;
             options.agent = false;
@@ -294,12 +320,48 @@ exports.download  = function(keysFolder, transferId, organisation, fileName, cal
                 res.on('end', function () {
                     writeStream.end();
                     console.log("Finishing download....");
-                    callback();
+                    checkTransfer(transferId, fileName, callback);
                 });
+
+                res.on('error', function (error) {
+                    console.log("Error when transferring file")
+                    callback(error)
+                })
             });
+
+            req.on('error', function (error) {
+                callback(error)
+            })
             req.end();
         });
-    });
+    })
+
+    function checkTransfer(transferId,fileName,callback){
+        var expectedChecksum  = ""
+        try{
+            expectedChecksum = JSON.parse(new Buffer(transferId, 'base64').toString('ascii')).checkSum;
+        }
+        catch(e){
+            callback(e)
+        }
+        checksum.file(fileName,function(err,result){
+
+            console.log("Expected checksum:\n",expectedChecksum,"Actual checksum:\n",result)
+
+            if(err || result!==expectedChecksum){
+                if (err) {
+                    callback(err)
+                }
+                else{
+                    console.log("Checksums do not match!");
+                    callback(new Error("The checksums do not match"))
+                }
+                return
+            }
+            console.log("Checksums match")
+            callback(undefined,fileName)
+        })
+    }
 }
 
 exports.unshare  = function(keysFolder, transferId, organisation, callback){

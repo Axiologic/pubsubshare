@@ -1,6 +1,6 @@
 
 var redis = require("redis");
-
+var checksum = require('checksum')
 var uuid = require('node-uuid');
 var util = require("util");
 var RELAY_PUBSUB_CHANNEL_NAME = "PubSubRelay";
@@ -8,11 +8,12 @@ var RELAY_PUBSUB_CHANNEL_NAME = "PubSubRelay";
 var CONFIGURATION_REQUEST_CHANNEL_NAME = "PubSub_CONFIGURATION_CHANNEL_REQUEST";
 var CONFIGURATION_ANSWEAR_CHANNEL_NAME = "PubSub_CONFIGURATION_CHANNEL_ANSWEAR";
 
+
 var container = require("safebox").container;
 
 /*
-    TODO: review error handling code! Still not cool enough...
-*/
+ TODO: review error handling code! Still not cool enough...
+ */
 
 
 function NotReadyAPI(realCallback, setter){
@@ -51,13 +52,13 @@ function RedisPubSubClient(redisPort, redisHost , redisPassword, statusReporting
     subscribeRedisClient.on("error", onRedisReconnecting);
 
     subscribeRedisClient.on("ready", function(){
-            cmdRedisClient = redis.createClient(redisPort, redisHost, redisPassword);
-            cmdRedisClient.retry_delay = 2000;
-            cmdRedisClient.max_attempts = 20;
-            cmdRedisClient.on("error", onRedisReconnecting);
-            cmdRedisClient.on("reconnecting", onRedisReconnecting);
-            cmdRedisClient.on("ready",onRedisReconnecting);
-        });
+        cmdRedisClient = redis.createClient(redisPort, redisHost, redisPassword);
+        cmdRedisClient.retry_delay = 2000;
+        cmdRedisClient.max_attempts = 20;
+        cmdRedisClient.on("error", onRedisReconnecting);
+        cmdRedisClient.on("reconnecting", onRedisReconnecting);
+        cmdRedisClient.on("ready",onRedisReconnecting);
+    });
 
 
     var listeners = {};
@@ -85,7 +86,6 @@ function RedisPubSubClient(redisPort, redisHost , redisPassword, statusReporting
     })
 
     this.publishImpl  = function(channel, message, callback){
-        //console.log("Callback is:", callback);
         if(callback){
             cmdRedisClient.publish(channel, message, callback);
         } else {
@@ -93,13 +93,11 @@ function RedisPubSubClient(redisPort, redisHost , redisPassword, statusReporting
         }
     }
 
-
     this.publish = this.publishImpl;
 
     this.getCmdConnection = function(){
         return cmdRedisClient;
     }
-
     function onRedisReconnecting(err, res) {
         if(!err){
             if(cmdRedisClient.retry_delay < 30000){
@@ -107,9 +105,7 @@ function RedisPubSubClient(redisPort, redisHost , redisPassword, statusReporting
             }
         }
         statusReporting(err, cmdRedisClient);
-        //localLog("redis", "Redis reconnecting attempt [" + event.attempt + "] with delay [" + event.delay + "] !", event);
     }
-
 }
 
 
@@ -117,11 +113,11 @@ var busNode = require("./BusNode.js");
 
 exports.createRelay = function(httpsEnabled,organisationName, redisHost, redisPort, redisPassword, publicHost, publicPort, keySpath, filesPath, statusReporting){
 
-  var redis = new RedisPubSubClient(redisPort, redisHost, redisPassword, function(err){
-     if(err){
-         statusReporting(err);
-     }
-  });
+    var redis = new RedisPubSubClient(redisPort, redisHost, redisPassword, function(err){
+        if(err){
+            statusReporting(err);
+        }
+    });
 
     function relayImpl(){
         this.doDispatch = function(redis, channel, message, callback){
@@ -195,15 +191,15 @@ exports.createClient = function(redisHost, redisPort, redisPassword, keysFolder,
 
 
     function copyFile(source, target, callback) {
-            function reject(err){
-                callback(err)
-            }
-            var rd = fs.createReadStream(source);
-            rd.on('error', reject);
-            var wr = fs.createWriteStream(target);
-            wr.on('error', reject);
-            wr.on('finish', callback);
-            rd.pipe(wr);
+        function reject(err){
+            callback(err)
+        }
+        var rd = fs.createReadStream(source);
+        rd.on('error', reject);
+        var wr = fs.createWriteStream(target);
+        wr.on('error', reject);
+        wr.on('finish', callback);
+        rd.pipe(wr);
     }
 
 
@@ -218,22 +214,35 @@ exports.createClient = function(redisHost, redisPort, redisPassword, keysFolder,
 
         var res = channel.match(/\s*!([\w\.]+[:]*\d*)\/(.*)/);
         if(res){
-                var envelope = {
-                    localChannel:res[2],
-                    organisation:res[1],
-                    message:strMessage
-                }
+            var envelope = {
+                localChannel:res[2],
+                organisation:res[1],
+                message:strMessage
+            }
             client.publishImpl(RELAY_PUBSUB_CHANNEL_NAME, JSON.stringify(envelope), callback);
-            } else {
+        } else {
             client.publishImpl(channel, strMessage, callback);
         }
     }
 
+
+
     function shareFile(filePath, callback){
-        var uid = new Buffer(JSON.stringify({organisation:organisationName, random:uuid.v4()})).toString('base64');
-        busNode.upload(keysFolder, organisationName, uid, filePath, function(err, res){
-            callback(err, uid);
-        });
+        /*
+         The uid will contain the origin of the file, a random nr and the md5 checksum of the file
+         */
+        checksum.file(filePath,function(err,sum) {
+
+            var uid = new Buffer(JSON.stringify(
+                {
+                    organisation: organisationName,
+                    random: uuid.v4(),
+                    checkSum:sum
+                })).toString('base64');
+            busNode.upload(keysFolder, organisationName, uid, filePath, function (err, res) {
+                callback(err, uid);
+            });
+        })
     }
 
     function download(transferId, path, callback){
